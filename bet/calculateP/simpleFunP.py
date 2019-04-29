@@ -18,7 +18,8 @@ class wrong_argument_type(Exception):
     Exception for when the argument for data_set is not one of the acceptible
     types.
     """
-    
+
+
 def check_type(val, data_set=None):
     if isinstance(data_set, samp.discretization):
         dim = data_set._output_sample_set.get_dim()
@@ -38,6 +39,7 @@ def check_type(val, data_set=None):
     else:
         pass
     return val
+
 
 def infer_Q(data_set):
     if isinstance(data_set, samp.sample_set_base):
@@ -241,6 +243,7 @@ def uniform_partition_uniform_distribution_rectangle_size(data_set,
     '''
     if isinstance(data_set, samp.discretization):
         data_set._output_probability_set = s_set
+        data_set.set_io_ptr(globalize=False)
     return s_set
 
 
@@ -411,6 +414,7 @@ def regular_partition_uniform_distribution_rectangle_size(data_set, Q_ref=None,
 
     if isinstance(data_set, samp.discretization):
         data_set._output_probability_set = s_set
+        data_set.set_io_ptr(globalize=False)
     return s_set
 
 
@@ -541,6 +545,7 @@ def uniform_partition_uniform_distribution_data_samples(data_set):
 
     if isinstance(data_set, samp.discretization):
         data_set._output_probability_set = s_set
+        data_set.set_io_ptr(globalize=False)
     return s_set
 
 
@@ -637,6 +642,7 @@ def normal_partition_normal_distribution(data_set, Q_ref=None, std=1, M=1,
     # solving the model EVER! This can be done "offline" so to speak.
     if isinstance(data_set, samp.discretization):
         data_set._output_probability_set = s_set
+        data_set.set_io_ptr(globalize=False)
     return s_set
 
 
@@ -721,6 +727,7 @@ def uniform_partition_normal_distribution(data_set, Q_ref=None, std=1, M=1,
     # solving the model EVER! This can be done "offline" so to speak.
     if isinstance(data_set, samp.discretization):
         data_set._output_probability_set = s_set
+        data_set.set_io_ptr(globalize=False)
     return s_set
 
 
@@ -827,4 +834,5 @@ def user_partition_user_distribution(data_set, data_partition_set,
 
     if isinstance(data_set, samp.discretization):
         data_set._output_probability_set = s_set
+        data_set.set_io_ptr(globalize=False)
     return s_set
