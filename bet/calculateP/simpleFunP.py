@@ -31,6 +31,8 @@ def check_type(val, data_set=None):
     elif isinstance(val, list) or isinstance(val, tuple):
         if len(val) != dim:
             raise samp.dim_not_matching("Dimension mismatch.")
+        else:
+            val = np.array(val)
     elif not isinstance(val, collections.Iterable):
         val = np.array([val])
     else:
