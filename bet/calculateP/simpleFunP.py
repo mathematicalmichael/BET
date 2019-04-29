@@ -18,7 +18,24 @@ class wrong_argument_type(Exception):
     Exception for when the argument for data_set is not one of the acceptible
     types.
     """
-
+    
+def check_type(val, data_set=None):
+    if isinstance(data_set, samp.discretization):
+        dim = data_set._output_sample_set.get_dim()
+    elif isinstance(data_set, samp.sample_set_base):
+        dim = data_set.get_dim()
+    else:
+        dim = 1
+    if isinstance(val, float) or isinstance(val, int):
+        val = np.array([val]*dim)
+    elif isinstance(val, list) or isinstance(val, tuple):
+        if len(val) != dim:
+            raise samp.dim_not_matching("Dimension mismatch.")
+    elif not isinstance(val, collections.Iterable):
+        val = np.array([val])
+    else:
+        pass
+    return val
 
 def infer_Q(data_set):
     if isinstance(data_set, samp.sample_set_base):
@@ -557,10 +574,8 @@ def normal_partition_normal_distribution(data_set, Q_ref=None, std=1, M=1,
     r'''Create M smaples defining M bins in D used to define
     :math:`\rho_{\mathcal{D},M}` rho_D is assumed to be a multi-variate normal
     distribution with mean Q_ref and standard deviation std.'''
-    if not isinstance(Q_ref, collections.Iterable):
-        Q_ref = np.array([Q_ref])
-    if not isinstance(std, collections.Iterable):
-        std = np.array([std])
+    Q_ref = check_type(Q_ref, data_set)
+    std = check_type(std, data_set)
 
     covariance = std ** 2
 
@@ -655,10 +670,8 @@ def uniform_partition_normal_distribution(data_set, Q_ref=None, std=1, M=1,
     distribution with mean Q_ref and standard deviation std.'''
     if Q_ref is None:
         Q_ref = infer_Q(data_set)
-    if not isinstance(Q_ref, collections.Iterable):
-        Q_ref = np.array([Q_ref])
-    if not isinstance(std, collections.Iterable):
-        std = np.array([std])
+    Q_ref = check_type(Q_ref, data_set)
+    std = check_type(std, data_set)
 
     bin_size = 4.0 * std
     d_distr_samples = np.zeros((M, len(Q_ref)))
