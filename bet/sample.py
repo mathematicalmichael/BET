@@ -1161,7 +1161,7 @@ class sample_set_base(object):
 
     def set_initial_distribution(self, dist, *args, **kwds):
         r"""
-        Assign an initial description of uncertainty for the 
+        Assign an initial description of uncertainty for the
         sample set. The type is flexible, but needs to contain the following
         methods in order to function:
         - ``.pdf`` - return density values as ndarray
@@ -1169,7 +1169,7 @@ class sample_set_base(object):
         - ``.cdf`` - return cumulative distribution value
         It is suggested to pass a ``scipy.stats.distributions`` object.
         If one is detected, we will automatically overwrite the pdf and cdf
-        methods to return the product of the marginals. 
+        methods to return the product of the marginals.
 
         Pass any additional keyword arguments to ``dist`` that are required.
         """
@@ -2759,7 +2759,7 @@ class discretization(object):
         """
         Slices outputs of discretization and returns object with the
         same input sample set. For new instances, use `choose_inputs_outputs`.
-        This function is of particular use for iterated ansatzs. 
+        This function is of particular use for iterated ansatzs.
 
         :param list outputs: list of indices of output sample set to include
 

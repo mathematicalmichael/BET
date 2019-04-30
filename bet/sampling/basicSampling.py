@@ -402,7 +402,7 @@ class sampler(object):
             output_dim = local_output_values.shape[1]
         output_sample_set = sample.sample_set(output_dim)
         output_sample_set.set_values_local(local_output_values)
-        lam_ref = input_sample_set._reference_value 
+        lam_ref = input_sample_set._reference_value
         if lam_ref is not None:
             try:
                 if not isinstance(lam_ref, collections.Iterable):
