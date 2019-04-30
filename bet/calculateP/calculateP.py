@@ -82,6 +82,11 @@ def prob(discretization, globalize=True):
     discretization.check_nums()
     op_num = discretization._output_probability_set.check_num()
 
+    # Check for necessary properties
+    if discretization._input_sample_set._probabilities_local is None:
+        discretization._input_sample_set._probabilities_local =\
+        discretization._input_sample_set._volumes_local.copy()
+
     # Calculate Probabilities
     if discretization._input_sample_set._values_local is None:
         discretization._input_sample_set.global_to_local()
@@ -90,12 +95,12 @@ def prob(discretization, globalize=True):
         if discretization._output_probability_set._probabilities[i] > 0.0:
             Itemp = np.equal(discretization._io_ptr_local, i)
             Itemp_sum = np.sum(discretization._input_sample_set.
-                               _volumes_local[Itemp])
+                               _probabilities_local[Itemp])
             Itemp_sum = comm.allreduce(Itemp_sum, op=MPI.SUM)
             if Itemp_sum > 0:
                 P_local[Itemp] = discretization._output_probability_set.\
                     _probabilities[i]*discretization._input_sample_set.\
-                    _volumes_local[Itemp]/Itemp_sum
+                    _probabilities_local[Itemp]/Itemp_sum
     if globalize:
         discretization._input_sample_set._probabilities = util.\
             get_global_values(P_local)
