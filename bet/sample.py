@@ -2760,7 +2760,7 @@ class discretization(object):
         Slices outputs of discretization and returns object with the
         same input sample set. For new instances, use `choose_inputs_outputs`.
         This function is of particular use for iterated ansatzs. 
-        
+
         :param list outputs: list of indices of output sample set to include
 
         :rtype: :class:`~bet.sample.discretization`
@@ -2785,9 +2785,9 @@ class discretization(object):
 
         disc = discretization(input_sample_set=self._input_sample_set,
                               output_sample_set=output_ss)
-        
+
         return disc
-    
+
     def choose_inputs_outputs(self,
                               inputs=None,
                               outputs=None):
