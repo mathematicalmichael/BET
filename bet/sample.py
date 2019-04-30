@@ -2803,8 +2803,7 @@ class discretization(object):
 
         """
         ci = self._input_sample_set.clip(cnum)
-        co = self._output_sample_set.clip(cnum)
-
+        co = self._output_sample_set.clip
         return discretization(input_sample_set=ci,
                               output_sample_set=co,
                               output_probability_set=self._output_probability_set,
@@ -2867,7 +2866,7 @@ class discretization(object):
                               output_sample_set=output_ss)
         # keep track of previous sample sets for iterated solutions
         # since we will need to access the kde objects from each solve.
-        if hasattrhasattr(disc,'_previous_outputs'):
+        if hasattr(disc,'_previous_outputs'):
             disc._previous_outputs.append(self._output_sample_set)
         else:
             disc._previous_outputs = [self._output_sample_set]
