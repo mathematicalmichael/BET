@@ -2693,6 +2693,39 @@ class discretization(object):
                               emulated_input_sample_set=mei,
                               emulated_output_sample_set=meo)
 
+    def choose_outputs(self, outputs=None):
+        """
+        Slices outputs of discretization and returns object with the
+        same input sample set. For new instances, use `choose_inputs_outputs`.
+        This function is of particular use for iterated ansatzs. 
+        
+        :param list outputs: list of indices of output sample set to include
+
+        :rtype: :class:`~bet.sample.discretization`
+        :returns: sliced discretization
+
+        """
+        slice_list = ['_values', '_values_local',
+                      '_error_estimates', '_error_estimates_local']
+
+        output_ss = sample_set(len(outputs))
+        output_ss.set_p_norm(self._output_sample_set._p_norm)
+        if self._output_sample_set._domain is not None:
+            output_ss.set_domain(self._output_sample_set._domain[outputs, :])
+        if self._output_sample_set._reference_value is not None:
+            output_ss.set_reference_value(
+                self._output_sample_set._reference_value[outputs])
+
+        for obj in slice_list:
+            val = getattr(self._output_sample_set, obj)
+            if val is not None:
+                setattr(output_ss, obj, val[:, outputs])
+
+        disc = discretization(input_sample_set=self._input_sample_set,
+                              output_sample_set=output_ss)
+        
+        return disc
+    
     def choose_inputs_outputs(self,
                               inputs=None,
                               outputs=None):
