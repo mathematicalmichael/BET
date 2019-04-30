@@ -1208,7 +1208,7 @@ class sample_set_base(object):
         """
         return self._distribution
 
-    def rvs(self, num):
+    def rvs(self, num=1):
         """
         Returns correctly-shaped random variates.
         """
@@ -2969,13 +2969,13 @@ class discretization(object):
     def initial_pdf(self, x):
         return self._input_sample_set.pdf(x)
 
-    def predicted_pdf(x):
+    def predicted_pdf(self, x):
         return self._output_sample_set.pdf(x)
 
     def ratio_pdf(self, x):
         return self.observed_pdf(x)/self.predicted_pdf(x)
 
-    def observed_pdf(x):
+    def observed_pdf(self, x):
         return self._output_probability_set.pdf(x)
 
 
