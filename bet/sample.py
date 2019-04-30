@@ -2803,7 +2803,7 @@ class discretization(object):
 
         """
         ci = self._input_sample_set.clip(cnum)
-        co = self._output_sample_set.clip
+        co = self._output_sample_set.clip(cnum)
         return discretization(input_sample_set=ci,
                               output_sample_set=co,
                               output_probability_set=self._output_probability_set,
