@@ -1220,7 +1220,7 @@ class sample_set_base(object):
             except:
                 return self._distribution.rvs(num)
 
-    def generate_samples(num_samples=None, globalize=True):
+    def generate_samples(self, num_samples=None, globalize=True):
         """
         Generate i.i.d samples according to distribution
         """
