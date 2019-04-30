@@ -1212,10 +1212,13 @@ class sample_set_base(object):
         """
         Returns correctly-shaped random variates.
         """
-        try:
-            return self._distribution.rvs((num, self._dim))
-        except:
-            return self._distribution.rvs(num)
+        if isinstance(self._distribution, scipy.stats.gaussian_kde):
+            return self._distribution.resample(num)
+        else:
+            try:
+                return self._distribution.rvs((num, self._dim))
+            except:
+                return self._distribution.rvs(num)
 
     def generate_samples(num_samples=None, globalize=True):
         """
