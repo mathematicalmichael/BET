@@ -1159,42 +1159,74 @@ class sample_set_base(object):
 
         """
 
-    def set_initial_distribution(self, dist, *args, **kwds):
+    def set_distribution(self, dist=None, *args, **kwds):
         r"""
-        Assign an initial description of uncertainty for the
-        sample set. The type is flexible, but needs to contain the following
+        Assign an description of uncertainty for sample set. 
+        The type is flexible, but needs to contain the following
         methods in order to function:
-        - ``.pdf`` - return density values as ndarray
+        - ``.pdf`` - return density values as ``ndarray``
         - ``.rvs`` - generate random variables
         - ``.cdf`` - return cumulative distribution value
         It is suggested to pass a ``scipy.stats.distributions`` object.
-        If one is detected, we will automatically overwrite the pdf and cdf
-        methods to return the product of the marginals.
+        If one is detected, we will automatically handle the pdf and cdf
+        methods to return the product of the marginals as methods.
 
         Pass any additional keyword arguments to ``dist`` that are required.
         """
-        self._initial_distribution = dist(*args, **kwds)
+        if dist is None:
+            from scipy.stats.distributions import uniform
+            dist = uniform
+            self._domain = np.array([0, 1]*self._dim)
+        self._distribution = dist(*args, **kwds)
 
-    def initial_pdf(self, x):
-        r"""
+    def set_dist(self, dist=None, *args, **kwds):
         """
-        try:
-            den = self._initial_distribution.pdf(x).prod(axis=1)
-        except AxisError:
-            den = self._initial_distribution.pdf(x)
+        Wrapper for ``set_initial_distribution``
+        """
+        return self.set_distribution(self, dist, *args, **kwds)
+    
+    def get_dist(self):
+        """
+        Returns ``initial_distribution``
+        """
+        return self._distribution
+    
+    def pdf(self, x):
+        r"""
+        Evaluate the probability density at a set of points x
+        
+        :param x: points for query
+        :type x: :class:`numpy.ndarray` of shape ``(*, dim)``
+        
+        """
+        if self._dim > 1:
+            try: # handle ``scipy.stats.rv_frozen`` objects
+                den = self._distribution.pdf(x).prod(axis=1)
+            except AxisError:
+                den = self._distribution.pdf(x)
+        else:  # 1-dimensional case
+            den = self._distribution.pdf(x)
         assert len(den) == x.shape[1]
         return den
 
-    def updated_pdf(self, x):
+    def cdf(self, x):
         r"""
+        Evaluate the cumulative density at a set of points x
+        
+        :param x: points for query
+        :type x: :class:`numpy.ndarray` of shape ``(*, dim)``
+        
         """
-        try:
-            den = self._updated_distribution.pdf(x)
-        except AxisError:
-            den = self._updated_distribution.pdf(x).prod(axis=1)
-        assert len(den) == x.shape[1]
-        return den
-
+        if self._dim > 1:
+            try: # handle ``scipy.stats.rv_frozen`` objects
+                cum = self._distribution.cdf(x).prod(axis=1)
+            except AxisError:
+                cum = self._distribution.cdf(x)
+        else:  # 1-dimensional case
+            cum = self._distribution.cdf(x)
+        assert len(cum) == x.shape[1]
+        return cum
+        
     def set_initial_densities(self):
         r"""
         """
@@ -2787,7 +2819,12 @@ class discretization(object):
 
         disc = discretization(input_sample_set=self._input_sample_set,
                               output_sample_set=output_ss)
-
+        # keep track of previous sample sets for iterated solutions
+        # since we will need to access the kde objects from each solve.
+        if hasattrhasattr(disc,'_previous_outputs'):
+            disc._previous_outputs.append(self._output_sample_set)
+        else:
+            disc._previous_outputs = [self._output_sample_set]
         return disc
 
     def choose_inputs_outputs(self,
@@ -2850,3 +2887,57 @@ class discretization(object):
             self._input_sample_set.local_to_global()
         if self._output_sample_set is not None:
             self._output_sample_set.local_to_global()
+
+    def get_initial_distribution(self):
+        return self._input_sample_set._distribution
+
+    def get_observed_distribution(self):
+        return self._output_probability_set._distribution
+
+    def get_predicted_distribution(self):
+        return self._output_sample_set._distribution
+
+    def set_initial(self):
+        pass
+
+    def set_observed(self):
+        pass
+    
+    def compute_pushforward(self):
+#         if it detects that previous evaluations exist, make sure to use only the accepted samples when defining it. 
+        pass
+
+    # move this somewhere else:
+    def set_update_as_initial(self):
+        # store the objects for the predicted and observed and initial dists.
+        # clear out the output distribution
+        # observed may be able to stay
+        # perform accept/reject, print some stuff out, define predicted
+        # basically, you should be able to call this and immediately jump
+        # into prob.
+        pass
+
+    def initial_pdf(self, x):
+        return self._input_sample_set.pdf(x)
+
+    def predicted_pdf(x):
+        return self._output_sample_set.pdf(x)
+
+    def ratio_pdf(self, x):
+        return self.observed_pdf(x)/self.predicted_pdf(x)
+
+    def observed_pdf(x):
+        return self._output_probability_set.pdf(x)
+
+
+    def updated_pdf(self, x):
+        r"""
+        Evaluate the updated density at a set of points x
+        
+        :param x: points for query
+        :type x: :class:`numpy.ndarray` of shape ``(*, dim)``
+        
+        """
+        den = self.pdf(x)*self.ratio_pdf(x)
+        assert len(den) == x.shape[1]
+        return den
