@@ -1167,6 +1167,7 @@ class sample_set_base(object):
         - ``.pdf`` - return density values as ``ndarray``
         - ``.rvs`` - generate random variables
         - ``.cdf`` - return cumulative distribution value
+        - ``.interval`` - return confidence interval around median
         It is suggested to pass a ``scipy.stats.distributions`` object.
         If one is detected, we will automatically handle the pdf and cdf
         methods to return the product of the marginals as methods.
@@ -1176,21 +1177,65 @@ class sample_set_base(object):
         if dist is None:
             from scipy.stats.distributions import uniform
             dist = uniform
-            self._domain = np.array([0, 1]*self._dim)
-        self._distribution = dist(*args, **kwds)
+            self._domain = np.array([[0, 1]]*self._dim)
+        if isinstance(dist, scipy.stats.distributions.rv_frozen):
+            self._distribution = dist
+        else:
+            self._distribution = dist(*args, **kwds)
+        try:  # set domain based on distribution
+            mins, maxs = self._distribution.interval(1)
+            domain = np.zeros((self._dim, 2))
+            domain[:,0], domain[:,1] = mins, maxs
+            self._domain = domain 
+        except AttributeError:
+            logging.warn("Could not infer domain from distribution.")
 
     def set_dist(self, dist=None, *args, **kwds):
         """
-        Wrapper for ``set_initial_distribution``
+        Wrapper for ``set_distribution``
         """
         return self.set_distribution(self, dist, *args, **kwds)
-    
+
     def get_dist(self):
         """
-        Returns ``initial_distribution``
+        Wrapper for ``get_distribution``
+        """
+        return self.get_distribution()
+
+    def get_distribution(self):
+        """
+        Returns ``distribution``
         """
         return self._distribution
-    
+
+    def rvs(self, num):
+        """
+        Returns correctly-shaped random variates.
+        """
+        try:
+            return self._distribution.rvs((num, self._dim))
+        except:
+            return self._distribution.rvs(num)
+
+    def generate_samples(num_samples=None, globalize=True):
+        """
+        Generate i.i.d samples according to distribution
+        """
+        if num_samples is None:
+            num_samples = self.check_num()
+        
+        # define local number of samples
+        num_samples_local = int((num_samples/comm.size) +
+                                (comm.rank < num_samples % comm.size))
+        self.set_values_local(self.rvs(num_samples_local))
+        
+        comm.barrier()
+        
+        if globalize:
+            self.local_to_global()
+        else:
+            self._values = None
+
     def pdf(self, x):
         r"""
         Evaluate the probability density at a set of points x
@@ -1226,7 +1271,7 @@ class sample_set_base(object):
             cum = self._distribution.cdf(x)
         assert len(cum) == x.shape[1]
         return cum
-        
+
     def set_initial_densities(self):
         r"""
         """
