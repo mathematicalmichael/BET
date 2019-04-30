@@ -1226,14 +1226,11 @@ class sample_set_base(object):
         """
         if num_samples is None:
             num_samples = self.check_num()
-        
         # define local number of samples
         num_samples_local = int((num_samples/comm.size) +
                                 (comm.rank < num_samples % comm.size))
         self.set_values_local(self.rvs(num_samples_local))
-        
         comm.barrier()
-        
         if globalize:
             self.local_to_global()
         else:
