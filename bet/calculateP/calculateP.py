@@ -42,8 +42,6 @@ def prob_on_emulated_samples(discretization, globalize=True):
     discretization._emulated_input_sample_set.check_num()
 
     # Check for necessary properties
-#     if discretization._io_ptr_local is None:
-#         discretization.set_io_ptr(globalize=True)
     if discretization._emulated_ii_ptr_local is None:
         discretization.set_emulated_ii_ptr(globalize=False)
 
@@ -83,10 +81,6 @@ def prob(discretization, globalize=True):
     # Check Dimensions
     discretization.check_nums()
     op_num = discretization._output_probability_set.check_num()
-
-    # Check for necessary attributes
-#     if discretization._io_ptr_local is None:
-#         discretization.set_io_ptr(globalize=False)
 
     # Calculate Probabilities
     if discretization._input_sample_set._values_local is None:
