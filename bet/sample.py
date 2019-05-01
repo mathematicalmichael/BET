@@ -1279,6 +1279,19 @@ class sample_set_base(object):
         assert len(cum) == x.shape[1]
         return cum
 
+    def estimate_probabilities_mc(self, globalize=True):
+        """
+        Give all cells the same probability fraction based on the Monte Carlo
+        assumption.  
+        """
+        num = self.check_num()
+        if globalize:
+            self._probabilities = 1.0/float(num)*np.ones((num,))
+            self.global_to_local()
+        else:
+            num_local = self.check_num_local()
+            self._probabilities_local = 1.0/float(num)*np.ones((num_local,))
+
     def set_initial_densities(self):
         r"""
         """
