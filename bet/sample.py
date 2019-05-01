@@ -1084,7 +1084,7 @@ class sample_set_base(object):
     def estimate_volume_mc(self, globalize=True):
         """
         Give all cells the same volume fraction based on the Monte Carlo
-        assumption.  
+        assumption.
         """
         num = self.check_num()
         if globalize:
@@ -1162,7 +1162,7 @@ class sample_set_base(object):
 
     def set_distribution(self, dist=None, *args, **kwds):
         r"""
-        Assign an description of uncertainty for sample set. 
+        Assign an description of uncertainty for sample set.
         The type is flexible, but needs to contain the following
         methods in order to function:
         - ``.pdf`` - return density values as ``ndarray``
@@ -1251,7 +1251,7 @@ class sample_set_base(object):
             if self._dim > 1:
                 try:  # handle ``scipy.stats.rv_frozen`` objects
                     den = self._distribution.pdf(x).prod(axis=1)
-                except AxisError:
+                except np.AxisError:
                     den = self._distribution.pdf(x)
             else:  # 1-dimensional case
                 den = self._distribution.pdf(x)
@@ -1267,12 +1267,12 @@ class sample_set_base(object):
 
         """
         if isinstance(self._distribution, scipy.stats.gaussian_kde):
-            den = self._distribution.pdf(x.T).T  # needs transpose
+            cum = self._distribution.pdf(x.T).T  # needs transpose
         else:
             if self._dim > 1:
                 try:  # handle ``scipy.stats.rv_frozen`` objects
                     cum = self._distribution.cdf(x).prod(axis=1)
-                except AxisError:
+                except np.AxisError:
                     cum = self._distribution.cdf(x)
             else:  # 1-dimensional case
                 cum = self._distribution.cdf(x)
@@ -1282,7 +1282,7 @@ class sample_set_base(object):
     def estimate_probabilities_mc(self, globalize=True):
         """
         Give all cells the same probability fraction based on the Monte Carlo
-        assumption.  
+        assumption.
         """
         num = self.check_num()
         if globalize:

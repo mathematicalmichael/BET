@@ -86,7 +86,7 @@ def prob(discretization, globalize=True):
     if discretization._input_sample_set._probabilities_local is None:
         if discretization._input_sample_set._volumes_local is not None:
             discretization._input_sample_set._probabilities_local =\
-            discretization._input_sample_set._volumes_local.copy()
+                discretization._input_sample_set._volumes_local.copy()
         else:  # or use MC assumption in absense of other information
             msg = "No volumes or initial probabilities. "
             msg += "Making MC assumption for both attributes."
