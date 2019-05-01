@@ -82,10 +82,17 @@ def prob(discretization, globalize=True):
     discretization.check_nums()
     op_num = discretization._output_probability_set.check_num()
 
-    # Check for necessary properties
+    # Check for necessary properties, infer initial probabilities from volumes
     if discretization._input_sample_set._probabilities_local is None:
-        discretization._input_sample_set._probabilities_local =\
-        discretization._input_sample_set._volumes_local.copy()
+        if discretization._input_sample_set._volumes_local is not None:
+            discretization._input_sample_set._probabilities_local =\
+            discretization._input_sample_set._volumes_local.copy()
+        else:  # or use MC assumption in absense of other information
+            msg = "No volumes or initial probabilities. "
+            msg += "Making MC assumption for both attributes."
+            logging.warn(msg)
+            discretization._input_sample_set.estimate_probabilities_mc()
+            discretization._input_sample_set.estimate_volumes_mc()
 
     # Calculate Probabilities
     if discretization._input_sample_set._values_local is None:

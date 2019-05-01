@@ -2742,6 +2742,9 @@ class discretization(object):
                 raise dim_not_matching("dimension of values incorrect")
         else:
             raise AttributeError("Wrong Type: Should be sample_set_base type")
+        if self._output_sample_set._values_local is not None:
+            if emulated_output_sample_set._values is not None:
+                self.set_emulated_oo_ptr(globalize=False)
 
     def get_emulated_input_sample_set(self):
         """
@@ -2775,6 +2778,9 @@ class discretization(object):
                 self._emulated_input_sample_set = emulated_input_sample_set
         else:
             raise AttributeError("Wrong Type: Should be sample_set_base type")
+        if self._input_sample_set._values_local is not None:
+            if emulated_input_sample_set._values is not None:
+                self.set_emulated_ii_ptr(globalize=False)
 
     def estimate_input_volume_emulated(self):
         """
