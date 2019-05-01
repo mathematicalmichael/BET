@@ -1186,8 +1186,8 @@ class sample_set_base(object):
         try:  # set domain based on distribution
             mins, maxs = self._distribution.interval(1)
             domain = np.zeros((self._dim, 2))
-            domain[:,0], domain[:,1] = mins, maxs
-            self._domain = domain 
+            domain[:, 0], domain[:, 1] = mins, maxs
+            self._domain = domain
         except AttributeError:
             logging.warn("Could not infer domain from distribution.")
 
@@ -1240,36 +1240,42 @@ class sample_set_base(object):
     def pdf(self, x):
         r"""
         Evaluate the probability density at a set of points x
-        
+
         :param x: points for query
         :type x: :class:`numpy.ndarray` of shape ``(*, dim)``
-        
+
         """
-        if self._dim > 1:
-            try: # handle ``scipy.stats.rv_frozen`` objects
-                den = self._distribution.pdf(x).prod(axis=1)
-            except AxisError:
+        if isinstance(self._distribution, scipy.stats.gaussian_kde):
+            den = self._distribution.pdf(x.T).T  # needs transpose
+        else:
+            if self._dim > 1:
+                try:  # handle ``scipy.stats.rv_frozen`` objects
+                    den = self._distribution.pdf(x).prod(axis=1)
+                except AxisError:
+                    den = self._distribution.pdf(x)
+            else:  # 1-dimensional case
                 den = self._distribution.pdf(x)
-        else:  # 1-dimensional case
-            den = self._distribution.pdf(x)
         assert len(den) == x.shape[1]
         return den
 
     def cdf(self, x):
         r"""
         Evaluate the cumulative density at a set of points x
-        
+
         :param x: points for query
         :type x: :class:`numpy.ndarray` of shape ``(*, dim)``
-        
+
         """
-        if self._dim > 1:
-            try: # handle ``scipy.stats.rv_frozen`` objects
-                cum = self._distribution.cdf(x).prod(axis=1)
-            except AxisError:
+        if isinstance(self._distribution, scipy.stats.gaussian_kde):
+            den = self._distribution.pdf(x.T).T  # needs transpose
+        else:
+            if self._dim > 1:
+                try:  # handle ``scipy.stats.rv_frozen`` objects
+                    cum = self._distribution.cdf(x).prod(axis=1)
+                except AxisError:
+                    cum = self._distribution.cdf(x)
+            else:  # 1-dimensional case
                 cum = self._distribution.cdf(x)
-        else:  # 1-dimensional case
-            cum = self._distribution.cdf(x)
         assert len(cum) == x.shape[1]
         return cum
 
@@ -2867,7 +2873,7 @@ class discretization(object):
                               output_sample_set=output_ss)
         # keep track of previous sample sets for iterated solutions
         # since we will need to access the kde objects from each solve.
-        if hasattr(disc,'_previous_outputs'):
+        if hasattr(disc, '_previous_outputs'):
             disc._previous_outputs.append(self._output_sample_set)
         else:
             disc._previous_outputs = [self._output_sample_set]
@@ -2948,9 +2954,9 @@ class discretization(object):
 
     def set_observed(self):
         pass
-    
+
     def compute_pushforward(self):
-#         if it detects that previous evaluations exist, make sure to use only the accepted samples when defining it. 
+        #         if it detects that previous evaluations exist, make sure to use only the accepted samples when defining it.
         pass
 
     # move this somewhere else:
@@ -2975,14 +2981,13 @@ class discretization(object):
     def observed_pdf(self, x):
         return self._output_probability_set.pdf(x)
 
-
     def updated_pdf(self, x):
         r"""
         Evaluate the updated density at a set of points x
-        
+
         :param x: points for query
         :type x: :class:`numpy.ndarray` of shape ``(*, dim)``
-        
+
         """
         den = self.pdf(x)*self.ratio_pdf(x)
         assert len(den) == x.shape[1]
