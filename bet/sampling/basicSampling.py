@@ -411,6 +411,8 @@ class sampler(object):
                 if not isinstance(lam_ref, collections.Iterable):
                     lam_ref = np.array([lam_ref])
                 Q_ref = self.lb_model(lam_ref)
+                if not isinstance(Q_ref, collections.Iterable):
+                    Q_ref = np.array([Q_ref])
                 output_sample_set.set_reference_value(Q_ref)
             except ValueError:
                 try:
@@ -452,7 +454,7 @@ class sampler(object):
 
     def create_random_discretization(self, sample_type, input_obj,
                                      savefile=None, num_samples=None, criterion='center',
-                                     globalize=True):
+                                     globalize=True, param_ref=None):
         """
         Sampling algorithm with three basic options
 
@@ -492,6 +494,47 @@ class sampler(object):
 
         input_sample_set = self.random_sample_set(sample_type, input_obj,
                                                   num_samples, criterion, globalize)
-
+        if param_ref is not None:
+            input_sample_set.set_reference_value(param_ref)
         return self.compute_QoI_and_create_discretization(input_sample_set,
                                                           savefile, globalize)
+
+    def add_data(self, discretization, data=None, globalize=True):
+        """
+        Add a column of data to the output sample set, update the
+        reference parameter, dimension information.
+        :param disc: A :class:`bet.sample.discretization` object with
+        :type disc: :class:`~bet.sample.discretization` for problem set
+        
+        :rtype: :class:`~bet.sample.discretization`
+        :returns: :class:`~bet.sample.discretization` object which contains
+            input and output sample sets.
+        """
+        disc = discretization.copy() # do not overwrite original
+        Q_ref = disc._output_sample_set._reference_value
+        
+        # Take advantage of parallelism in other method to map values
+        input_sample_set = disc._input_sample_set
+        new = self.compute_QoI_and_create_discretization(input_sample_set, 
+                                                         None, globalize)
+        
+        # Append output values
+        new._output_sample_set._dim += disc._output_sample_set._dim
+        new_outputs = new._output_sample_set._values  # reference
+        old_outputs = disc._output_sample_set._values
+        new_outputs = np.concatenate((old_outputs, new_outputs), axis=1)
+        new._output_sample_set.set_values(new_outputs)
+
+        # If data specified, use it to set output reference
+        new_data = new._output_sample_set._reference_value
+        if not isinstance(new_data, collections.Iterable):
+            new_data = np.array([new_data])
+        if data is None: # otherwise, append values
+            if new_data is not None:
+                data = np.concatenate((Q_ref, new_data), axis=0)
+        if not isinstance(data, collections.Iterable):
+            data = np.array([data])
+        new._output_sample_set.set_reference_value(data)
+        
+       
+        return new

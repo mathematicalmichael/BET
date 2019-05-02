@@ -302,6 +302,10 @@ class sample_set_base(object):
         self._values = None
         #: :class:`numpy.ndarray` of sample Voronoi volumes of shape (num,)
         self._volumes = None
+        #: :class:`scipy.stats.distributions.rv_frozen` describing probability distribution
+        self._distribution = None
+        #: :class:`numpy.ndarray` of sample densities of shape (num,)
+        self._densities = None
         #: :class:`numpy.ndarray` of sample probabilities of shape (num,)
         self._probabilities = None
         #: :class:`numpy.ndarray` of Jacobians at samples of shape (num,
@@ -1195,7 +1199,7 @@ class sample_set_base(object):
         """
         Wrapper for ``set_distribution``
         """
-        return self.set_distribution(self, dist, *args, **kwds)
+        return self.set_distribution(dist, *args, **kwds)
 
     def get_dist(self):
         """
@@ -1214,12 +1218,12 @@ class sample_set_base(object):
         Returns correctly-shaped random variates.
         """
         if isinstance(self._distribution, scipy.stats.gaussian_kde):
-            return self._distribution.resample(num)
+            return self._distribution.resample(num).T
         else:
             try:
-                return self._distribution.rvs((num, self._dim))
+                return self._distribution.rvs(size=(num, self._dim))
             except:
-                return self._distribution.rvs(num)
+                return self._distribution.rvs(size=(num,1))
 
     def generate_samples(self, num_samples=None, globalize=True):
         """
@@ -1249,7 +1253,7 @@ class sample_set_base(object):
             den = self._distribution.pdf(x.T).T  # needs transpose
         else:
             if self._dim > 1:
-                try:  # handle ``scipy.stats.rv_frozen`` objects
+                try:  # handle `scipy.stats.rv_frozen` objects
                     den = self._distribution.pdf(x).prod(axis=1)
                 except np.AxisError:
                     den = self._distribution.pdf(x)
@@ -1267,10 +1271,10 @@ class sample_set_base(object):
 
         """
         if isinstance(self._distribution, scipy.stats.gaussian_kde):
-            cum = self._distribution.pdf(x.T).T  # needs transpose
+            cum = self._distribution.cdf(x.T).T  # needs transpose
         else:
             if self._dim > 1:
-                try:  # handle ``scipy.stats.rv_frozen`` objects
+                try:  # handle `scipy.stats.rv_frozen` objects
                     cum = self._distribution.cdf(x).prod(axis=1)
                 except np.AxisError:
                     cum = self._distribution.cdf(x)
@@ -1279,7 +1283,7 @@ class sample_set_base(object):
         assert len(cum) == x.shape[1]
         return cum
 
-    def estimate_probabilities_mc(self, globalize=True):
+    def estimate_probability_mc(self, globalize=True):
         """
         Give all cells the same probability fraction based on the Monte Carlo
         assumption.
@@ -1291,34 +1295,6 @@ class sample_set_base(object):
         else:
             num_local = self.check_num_local()
             self._probabilities_local = 1.0/float(num)*np.ones((num_local,))
-
-    def set_initial_densities(self):
-        r"""
-        """
-        if self._values is None:
-            raise AttributeError("Missing values.")
-        # sample-based approach
-        if self._initial_distribution is not None:
-            self._initial_densities_local = self.initial_pdf(
-                self._values_local)
-            self._initial_probabilities_local = \
-                self._initial_densities_local*self._volumes_local
-        else:
-            if self._probabilities is not None:
-                # use probabilities and volumes to infer densities
-                den_local = np.divide(self._probabilities_local,
-                                      self._volumes_local)
-                self._initial_densities_local = den_local
-            else:
-                vol_sum = np.sum(self._volumes_local)
-                vol_sum = comm.allreduce(vol_sum, op=MPI.SUM)
-                prob_local = self._volumes_local/vol_sum  # standard ansatz
-                self._initial_probabilities_local = prob_local
-                self._initial_densities_local = 1.0/vol_sum
-        self._initial_densities = util.get_global_values(
-            self._initial_densities_local)
-        self._initial_probabilities = util.get_global_values(
-            self._initial_probabilities_local)
 
 
 def save_discretization(save_disc, file_name, discretization_name=None,
@@ -2032,7 +2008,7 @@ class rectangle_sample_set(sample_set_base):
         if len(maxes) > 1:
             msg = "If rectangles intersect on a set nonzero measure, "
             msg += "calculated values will be wrong."
-            logging.warning(msg)
+#             logging.warning(msg)
         self._region = np.arange(len(maxes) + 1)
 
     def update_bounds(self, num=None):
@@ -2703,8 +2679,12 @@ class discretization(object):
         else:
             raise AttributeError("Wrong Type: Should be sample_set_base type")
         if self._output_sample_set._values_local is not None:
+            num = self._output_sample_set._values_local.shape[1]
             if output_probability_set._values is not None:
-                self.set_io_ptr(globalize=False)
+                try:
+                    self.set_io_ptr(globalize=False)
+                except dim_not_matching: # handle data-driven case
+                    self._io_ptr_local = np.arange(num)
 
     def get_emulated_output_sample_set(self):
         """
@@ -2903,18 +2883,27 @@ class discretization(object):
                               outputs=None):
         """
         Slices the inputs and outputs of the discretization.
-
-        :param list inputs: list of indices of input sample set to include
+        
+        :param list inputs: list of indices of input sample set to include.
         :param list outputs: list of indices of output sample set to include
 
         :rtype: :class:`~bet.sample.discretization`
         :returns: sliced discretization
 
+         .. note ::
+            If you pass None instead of list, all indices are kept.
+            This can be useful for re-arranging the order of variables,
+            creating repeated columns of data, or truncating spaces.
         """
         slice_list = ['_values', '_values_local',
                       '_error_estimates', '_error_estimates_local']
         slice_list2 = ['_jacobians', '_jacobians_local']
-
+        
+        if inputs is None:  # instead of error message, copy input.
+            inputs = np.arange(self._input_sample_set._dim)
+        if outputs is None:  # instead of error message, copy output.
+            outputs = np.arange(self._output_sample_set._dim)
+            
         input_ss = sample_set(len(inputs))
         output_ss = sample_set(len(outputs))
         input_ss.set_p_norm(self._input_sample_set._p_norm)
@@ -2968,15 +2957,48 @@ class discretization(object):
     def get_predicted_distribution(self):
         return self._output_sample_set._distribution
 
-    def set_initial(self):
-        pass
+    def get_predicted(self):
+        return self._output_sample_set._distribution
+    
+    def set_predicted_distribution(self, dist=None, *args, **kwds):
+        r"""
+        Wrapper for `compute_pushforward`.
+        """
+        return self.compute_pushforward(dist, *args, **kwds)
+    
+    def set_predicted(self, dist=None, *args, **kwds):
+        r"""
+        Wrapper for `compute_pushforward`.
+        """
+        return self.compute_pushforward(dist, *args, **kwds)
+    
+    def set_initial(self, dist=None, *args, **kwds):
+        r"""
+        """
+        self._input_sample_set.set_distribution(self, dist, *args, **kwds)        
 
-    def set_observed(self):
-        pass
+    def set_observed(self, dist=None, *args, **kwds):
+        r"""
+        Set output_probability_set._distribution. Default assumption is N(0,1).
+        """
+        dim = self._output_sample_set._dim
+        if dist is None: # normal by default
+            from scipy.stats.distributions import norm
+            dist = norm
+            self._domain = np.array([[-np.inf, np.inf]]*dim)
+        self._output_probability_set.set_distribution(self, dist, *args, **kwds)
 
-    def compute_pushforward(self):
-        #         if it detects that previous evaluations exist, make sure to use only the accepted samples when defining it.
-        pass
+    def compute_pushforward(self, dist=None, *args, **kwds):
+        # avoid accept/reject if possible
+        self._output_sample_set.local_to_global()
+        data = self._output_sample_set._values
+        if data is None:
+            raise AttributeError("Missing output values")
+        if dist is None:
+            from scipy.stats import gaussian_kde as gkde
+            self._output_sample_set._distribution = gkde(data.T, *args, **kwds)
+        else:
+            self._output_sample_set._distribution = dist(data, *args, **kwds)
 
     # move this somewhere else:
     def set_update_as_initial(self):
@@ -2995,19 +3017,73 @@ class discretization(object):
         return self._output_sample_set.pdf(x)
 
     def ratio_pdf(self, x):
+        r"""
+        Evaluate the ratio of observed to predicted densities
+        at a set of points x
+
+        :param x: points for evaluation of probability density function 
+        :type x: :class:`numpy.ndarray` of shape ``(*, dim)``
+
+        """
         return self.observed_pdf(x)/self.predicted_pdf(x)
 
     def observed_pdf(self, x):
+        r"""
+        Evaluate the observed density at a set of points x
+
+        :param x: points for evaluation of probability density function 
+        :type x: :class:`numpy.ndarray` of shape ``(*, dim)``
+
+        """
         return self._output_probability_set.pdf(x)
 
     def updated_pdf(self, x):
         r"""
         Evaluate the updated density at a set of points x
 
-        :param x: points for query
+        :param x: points for evaluation of probability density function 
         :type x: :class:`numpy.ndarray` of shape ``(*, dim)``
 
         """
         den = self.pdf(x)*self.ratio_pdf(x)
         assert len(den) == x.shape[1]
         return den
+
+    def data_driven(self, data=None):
+        r"""
+        Requires reference output value to work. Understood to mean "data"
+        If a distribution is present in `output_probability_set`, then we
+        perturb the `output_sample_set` reference value. 
+        """
+        if data is not None:
+            logging.info("Data provided. Using in place of reference value.")
+        
+        return None
+    
+    def set_initial_densities(self):
+        r"""
+        """
+        if self._values is None:
+            raise AttributeError("Missing values.")
+        # sample-based approach
+        if self._initial_distribution is not None:
+            self._initial_densities_local = self.initial_pdf(
+                self._values_local)
+            self._initial_probabilities_local = \
+                self._initial_densities_local*self._volumes_local
+        else:
+            if self._probabilities is not None:
+                # use probabilities and volumes to infer densities
+                den_local = np.divide(self._probabilities_local,
+                                      self._volumes_local)
+                self._initial_densities_local = den_local
+            else:
+                vol_sum = np.sum(self._volumes_local)
+                vol_sum = comm.allreduce(vol_sum, op=MPI.SUM)
+                prob_local = self._volumes_local/vol_sum  # standard ansatz
+                self._initial_probabilities_local = prob_local
+                self._initial_densities_local = 1.0/vol_sum
+        self._initial_densities = util.get_global_values(
+            self._initial_densities_local)
+        self._initial_probabilities = util.get_global_values(
+            self._initial_probabilities_local)
