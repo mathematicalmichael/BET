@@ -449,7 +449,8 @@ class sampler(object):
             self.save(mdat, savefile, discretization, globalize=globalize)
 
         comm.barrier()
-
+        
+        discretization.model = self.lb_model  # attach model to discretization
         return discretization
 
     def create_random_discretization(self, sample_type, input_obj,
@@ -519,6 +520,7 @@ class sampler(object):
                                                          None, globalize)
         
         # Append output values
+        num_new_obs = new._output_sample_set._dim
         new._output_sample_set._dim += disc._output_sample_set._dim
         new_outputs = new._output_sample_set._values  # reference
         old_outputs = disc._output_sample_set._values
@@ -529,6 +531,8 @@ class sampler(object):
         new_data = new._output_sample_set._reference_value
         if not isinstance(new_data, collections.Iterable):
             new_data = np.array([new_data])
+        if hasattr(discretization, '_noise_distribution'):
+            new_data += discretization._noise_distribution.rvs(size=(num_new_obs))
         if data is None: # otherwise, append values
             if new_data is not None:
                 data = np.concatenate((Q_ref, new_data), axis=0)
@@ -536,5 +540,9 @@ class sampler(object):
             data = np.array([data])
         new._output_sample_set.set_reference_value(data)
         
-       
+        if globalize:
+            new._output_sample_set.global_to_local()
+
+        new._output_sample_set.model = self.lb_model # we will use these for recursion
+        new._    
         return new

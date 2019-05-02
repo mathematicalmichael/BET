@@ -1192,6 +1192,8 @@ class sample_set_base(object):
             domain = np.zeros((self._dim, 2))
             domain[:, 0], domain[:, 1] = mins, maxs
             self._domain = domain
+        except ValueError:
+            raise dim_not_matching("Dimensions incorrectly specified.")
         except AttributeError:
             logging.warn("Could not infer domain from distribution.")
 
@@ -1213,19 +1215,21 @@ class sample_set_base(object):
         """
         return self._distribution
 
-    def rvs(self, num=1):
+    def rvs(self, num=1, dist=None):
         """
         Returns correctly-shaped random variates.
         """
-        if isinstance(self._distribution, scipy.stats.gaussian_kde):
-            return self._distribution.resample(num).T
+        if dist is None:
+            dist = self._distribution
+        if isinstance(dist, scipy.stats.gaussian_kde):
+            return dist.resample(num).T
         else:
             try:
-                return self._distribution.rvs(size=(num, self._dim))
-            except:
-                return self._distribution.rvs(size=(num,1))
+                return dist.rvs(size=(num, self._dim))
+            except ValueError:
+                return dist.rvs(size=(num,1))
 
-    def generate_samples(self, num_samples=None, globalize=True):
+    def generate_samples(self, num_samples=None, globalize=True, dist=None):
         """
         Generate i.i.d samples according to distribution
         """
@@ -1234,54 +1238,80 @@ class sample_set_base(object):
         # define local number of samples
         num_samples_local = int((num_samples/comm.size) +
                                 (comm.rank < num_samples % comm.size))
-        self.set_values_local(self.rvs(num_samples_local))
+        self.set_values_local(self.rvs(num_samples_local, dist))
         comm.barrier()
         if globalize:
             self.local_to_global()
         else:
             self._values = None
 
-    def pdf(self, x):
+    def pdf(self, x=None, dist=None):
         r"""
         Evaluate the probability density at a set of points x
 
         :param x: points for query
         :type x: :class:`numpy.ndarray` of shape ``(*, dim)``
-
+        :param dist: distribution with `rvs`, `pdf`, and `cdf` methods
+        :type dist: :class:`scipy.stats.distributions.rv_frozen`
+        
+        Note
+        =====
+        If `x` is None, we default to evaluating at `values`.
+        If `dist` is None, we use `self._distribution`. 
+        You can specify an alternative distribution to take advantage
+        of the re-formatting of outputs to satisfy our assumptions.
+        
         """
-        if isinstance(self._distribution, scipy.stats.gaussian_kde):
-            den = self._distribution.pdf(x.T).T  # needs transpose
+        if dist is None:
+            dist = self._distribution
+        if x is None:
+            x = self._values
+        if isinstance(dist, scipy.stats.gaussian_kde):
+            den = dist.pdf(x.T).T  # needs transpose
         else:
             if self._dim > 1:
                 try:  # handle `scipy.stats.rv_frozen` objects
-                    den = self._distribution.pdf(x).prod(axis=1)
+                    den = dist.pdf(x).prod(axis=1)
                 except np.AxisError:
-                    den = self._distribution.pdf(x)
+                    den = dist.pdf(x)
             else:  # 1-dimensional case
-                den = self._distribution.pdf(x)
-        assert len(den) == x.shape[1]
-        return den
+                den = dist.pdf(x)
+        assert len(den) == x.shape[0] # make sure we return correct size
+        return den.ravel() # always return flattened
 
-    def cdf(self, x):
+    def cdf(self, x=None, dist=None):
         r"""
         Evaluate the cumulative density at a set of points x
 
         :param x: points for query
         :type x: :class:`numpy.ndarray` of shape ``(*, dim)``
-
+        :param dist: distribution with `rvs`, `pdf`, and `cdf` methods
+        :type dist: :class:`scipy.stats.distributions.rv_frozen`
+        
+        Note
+        =====
+        If `x` is None, we default to evaluating at `values`.
+        If `dist` is None, we use `self._distribution`. 
+        You can specify an alternative distribution to take advantage
+        of the re-formatting of outputs to satisfy our assumptions.
+        
         """
-        if isinstance(self._distribution, scipy.stats.gaussian_kde):
-            cum = self._distribution.cdf(x.T).T  # needs transpose
+        if dist is None:
+            dist = self._distribution
+        if x is None:
+            x = self._values
+        if isinstance(dist, scipy.stats.gaussian_kde):
+            cum = dist.cdf(x.T).T  # needs transpose
         else:
             if self._dim > 1:
                 try:  # handle `scipy.stats.rv_frozen` objects
-                    cum = self._distribution.cdf(x).prod(axis=1)
+                    cum = dist.cdf(x).prod(axis=1)
                 except np.AxisError:
-                    cum = self._distribution.cdf(x)
+                    cum = dist.cdf(x)
             else:  # 1-dimensional case
-                cum = self._distribution.cdf(x)
-        assert len(cum) == x.shape[1]
-        return cum
+                cum = dist.cdf(x)
+        assert len(cum) == x.shape[0]
+        return cum.ravel() # always return flattened
 
     def estimate_probability_mc(self, globalize=True):
         """
@@ -2409,7 +2439,11 @@ class discretization(object):
         self._emulated_ii_ptr_local = None
         #: local emulated oo ptr for parallelism
         self._emulated_oo_ptr_local = None
-
+        #: iteration number 
+        self._iteration = 0
+        #: iteration dictionary to hold information
+        self._setup = {0: {'mode': 0, 'qoi':'SWE', 'obs': None, 'pre': None}}
+        
         if output_sample_set is not None:
             self.check_nums()
             if output_probability_set is not None:
@@ -2975,18 +3009,26 @@ class discretization(object):
     def set_initial(self, dist=None, *args, **kwds):
         r"""
         """
-        self._input_sample_set.set_distribution(self, dist, *args, **kwds)        
+        self._input_sample_set.set_distribution(dist, *args, **kwds)        
 
     def set_observed(self, dist=None, *args, **kwds):
         r"""
         Set output_probability_set._distribution. Default assumption is N(0,1).
         """
+        if self._output_probability_set is None:
+            self.set_output_probability_set(sample_set(self._output_sample_set._dim))
+            
         dim = self._output_sample_set._dim
         if dist is None: # normal by default
             from scipy.stats.distributions import norm
             dist = norm
-            self._domain = np.array([[-np.inf, np.inf]]*dim)
-        self._output_probability_set.set_distribution(self, dist, *args, **kwds)
+#             self._output_probability_set._domain = np.array([[-np.inf, np.inf]]*dim)
+
+        self._output_probability_set.set_distribution(dist, *args, **kwds)
+        self._output_probability_set.set_values(self._output_sample_set._values)
+
+        # Store distribution for iterated re-use
+        self._setup[self._iteration]['obs'] = self._output_probability_set._distribution
 
     def compute_pushforward(self, dist=None, *args, **kwds):
         # avoid accept/reject if possible
@@ -2994,11 +3036,15 @@ class discretization(object):
         data = self._output_sample_set._values
         if data is None:
             raise AttributeError("Missing output values")
+
         if dist is None:
             from scipy.stats import gaussian_kde as gkde
             self._output_sample_set._distribution = gkde(data.T, *args, **kwds)
         else:
             self._output_sample_set._distribution = dist(data, *args, **kwds)
+
+        # Store distribution for iterated re-use
+        self._setup[self._iteration]['pre'] = self._output_sample_set._distribution
 
     # move this somewhere else:
     def set_update_as_initial(self):
@@ -3008,28 +3054,30 @@ class discretization(object):
         # perform accept/reject, print some stuff out, define predicted
         # basically, you should be able to call this and immediately jump
         # into prob.
+        self._iteration += 1
         pass
 
-    def initial_pdf(self, x):
+    def initial_pdf(self, x=None):
         return self._input_sample_set.pdf(x)
 
-    def predicted_pdf(self, x):
-        return self._output_sample_set.pdf(x)
+    def predicted_pdf(self, x=None):
+        if self._output_sample_set._distribution is None:
+            self.set_predicted_distribution()
+        
+        out = self._output_sample_set.pdf(x)
+        out = np.log(out) # log transform for stability
+        for i in range(1,self._iteration+1):
+            out += np.log(self._setup[i]['pre'])
+        return np.exp(eval) 
 
-    def ratio_pdf(self, x):
+    def observed_pdf(self, x=None):
         r"""
-        Evaluate the ratio of observed to predicted densities
-        at a set of points x
+        Evaluate the observed pdf on a provided set of points.
 
-        :param x: points for evaluation of probability density function 
-        :type x: :class:`numpy.ndarray` of shape ``(*, dim)``
-
-        """
-        return self.observed_pdf(x)/self.predicted_pdf(x)
-
-    def observed_pdf(self, x):
-        r"""
-        Evaluate the observed density at a set of points x
+        Notes
+        -----
+        This is an alias for `~bet.sample.sample_set.pdf`.  See the ``pdf``
+        docstring for more details.
 
         :param x: points for evaluation of probability density function 
         :type x: :class:`numpy.ndarray` of shape ``(*, dim)``
@@ -3037,16 +3085,62 @@ class discretization(object):
         """
         return self._output_probability_set.pdf(x)
 
-    def updated_pdf(self, x):
+    def ratio_pdf(self, x=None):
         r"""
-        Evaluate the updated density at a set of points x
+        Evaluate the estimated ratio pdf on a provided set of points.
+        The ratio is the observed to the predicted densities.
+        
+        Notes
+        -----
+        This is a convenience alias for division between two evaluations of 
+        `~bet.sample.sample_set.pdf`.
+        See the ``pdf`` docstring for more details.
+        
+        :param x: points for evaluation of probability density function 
+        :type x: :class:`numpy.ndarray` of shape ``(*, dim)``
+
+        """
+        return self.observed_pdf(x)/self.predicted_pdf(x)
+
+    def normalized_ratio(self, x=None):
+        r"""
+        Evaluate the estimated ratio pdf on a provided set of points.
+        The ratio is the observed to the predicted densities.
+        Then, divide by the maximum. 
+        
+        Notes
+        -----
+        This is a convenience alias for `~bet.sample.discretization.ratio_pdf`.
+        It performs normalization, returning ratio/max(ratio).
+        This is particularly helpful for accept/reject procedures.
+
+        """
+        ratio = self.ratio_pdf(x)
+        return ratio/max(ratio)
+
+    def updated_pdf(self, x=None):
+        r"""
+        Evaluate the updated pdf on a provided set of points.
 
         :param x: points for evaluation of probability density function 
         :type x: :class:`numpy.ndarray` of shape ``(*, dim)``
 
         """
-        den = self.pdf(x)*self.ratio_pdf(x)
-        assert len(den) == x.shape[1]
+        if x is None:
+            x = self._input_sample_set._values
+            y = self._output_sample_set._values
+        else:
+            num, dim = x.shape[0], self._output_sample_set._dim
+            y = np.zeros((x.shape[0],1))
+            for model in self.models:
+                z = model(x).reshape(-1,1)
+                y = np.concatenate((y, z), axis=1)
+            y = y[:,1:]
+        den = self.initial_pdf(x)*self.ratio_pdf(y)
+        if x is not None: 
+            assert len(den) == x.shape[0]
+        else:
+            assert len(den) == self.check_nums()
         return den
 
     def data_driven(self, data=None):
@@ -3057,9 +3151,21 @@ class discretization(object):
         """
         if data is not None:
             logging.info("Data provided. Using in place of reference value.")
-        
+        Q_ref = self._output_sample_set._reference_value
+        try:  # attempt to overwrite data entirely if shape is correct
+            self._output_sample_set.set_reference_value(data)
+        except dim_not_matching:  # perhaps user is just passing just new data 
+            self._output_sample_set.set_reference_value(np.concatenate(
+                                                        (Q_ref, data), axis=1))
+        self._setup[self._iteration]['']
         return None
     
+    def get_setup(self):
+        return self._setup
+    
+    def default_setup(self):
+        self._setup[self._iteration] = {'mode': 0, 'qoi':'SWE', 'obs': None, 'pre': None}
+        
     def set_initial_densities(self):
         r"""
         """
