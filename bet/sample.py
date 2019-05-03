@@ -2442,7 +2442,7 @@ class discretization(object):
         #: iteration number 
         self._iteration = 0
         #: iteration dictionary to hold information
-        self._setup = {0: {'mode': 0, 'qoi':'SWE', 'obs': None, 'pre': None}}
+        self._setup = {0: {'col': 0, 'qoi':'SWE', 'obs': None, 'pre': None, 'model': None}}
         
         if output_sample_set is not None:
             self.check_nums()
@@ -3013,11 +3013,17 @@ class discretization(object):
 
     def set_observed(self, dist=None, *args, **kwds):
         r"""
+        Wrapper for ``set_observed_distribution``
+        """
+        return self.set_observed_distribution(dist, *args, **kwds)
+
+    def set_observed_distribution(self, dist=None, *args, **kwds):
+        r"""
         Set output_probability_set._distribution. Default assumption is N(0,1).
         """
         if self._output_probability_set is None:
             self.set_output_probability_set(sample_set(self._output_sample_set._dim))
-            
+
         dim = self._output_sample_set._dim
         if dist is None: # normal by default
             from scipy.stats.distributions import norm
@@ -3033,7 +3039,8 @@ class discretization(object):
     def compute_pushforward(self, dist=None, *args, **kwds):
         # avoid accept/reject if possible
         self._output_sample_set.local_to_global()
-        data = self._output_sample_set._values
+        inds = self._setup[self._iteration]['inds']
+        data = self._output_sample_set._values[:, inds]
         if data is None:
             raise AttributeError("Missing output values")
 
@@ -3062,13 +3069,17 @@ class discretization(object):
 
     def predicted_pdf(self, x=None):
         if self._output_sample_set._distribution is None:
-            self.set_predicted_distribution()
-        
-        out = self._output_sample_set.pdf(x)
+            self.compute_pushforward()
+            logging.warn("Missing predicted distribution. Computing now.")
+        data = format_output_data(iteration=self._iteration, x=x)
+        out = self._output_sample_set.pdf(data)
         out = np.log(out) # log transform for stability
-        for i in range(1,self._iteration+1):
-            out += np.log(self._setup[i]['pre'])
-        return np.exp(eval) 
+        for i in range(0, self._iteration-1):
+            obs = self._setup[i]['pre'] # load predicted distribution
+            inds = get_indices(iteration=i)
+            data = format_output_data(iteration=i)
+            out += np.log(self._output_sample_set.pdf(x=x, dist=obs))
+        return np.exp(out)
 
     def observed_pdf(self, x=None):
         r"""
@@ -3083,8 +3094,32 @@ class discretization(object):
         :type x: :class:`numpy.ndarray` of shape ``(*, dim)``
 
         """
-        return self._output_probability_set.pdf(x)
+        if self._output_probability_set._distribution is None:
+            self.set_observed_distribution()
+            logging.warn("Missing observed. Setting to default N(0,1).")
 
+        data = format_output_data(iteration=self._iteration, x=x)
+        out = self._output_probability_set.pdf(data)
+        out = np.log(out) # log transform for stability
+        for i in range(0, self._iteration-1):
+            obs = self._setup[i]['obs'] # load observed distribution
+            inds = get_indices(iteration=i)
+            data = format_output_data(iteration=i)
+            out += np.log(self._output_probability_set.pdf(x=x, dist=obs))
+        return np.exp(out)
+
+    def format_output_data(self, iteration=None, x=None):
+        if iteration is None: # get latest if None
+            inds = self.get_indices()
+        if x is None: # grab most recent values by default
+            data = self._output_sample_set._values[:, inds]
+        else:  # attempt to parse input values
+            try:
+                data = x[:, inds]
+            except np.AxisError:  # row-vector support
+                data = x[inds].reshape(-1,1)
+        return data
+    
     def ratio_pdf(self, x=None):
         r"""
         Evaluate the estimated ratio pdf on a provided set of points.
@@ -3132,16 +3167,44 @@ class discretization(object):
         else:
             num, dim = x.shape[0], self._output_sample_set._dim
             y = np.zeros((x.shape[0],1))
-            for model in self.models:
+            for model_num in range(self._iteration):
+                model = self._setup[model_num]['model']
                 z = model(x).reshape(-1,1)
                 y = np.concatenate((y, z), axis=1)
-            y = y[:,1:]
+            y = y[:,1:]  # remove column of zeros.
         den = self.initial_pdf(x)*self.ratio_pdf(y)
         if x is not None: 
             assert len(den) == x.shape[0]
         else:
             assert len(den) == self.check_nums()
         return den
+
+    def set_indices(self, inds=None, pushforward=True):
+        r"""
+        Choose the indices of the output set to use in this step of solving
+        the inverse problem. 
+        """
+        data_driven_mode = self._setup[self._iteration]['col']
+        if inds is None: # default is to return all indices
+            if abs(data_driven_mode): # data-driven?
+                if data_driven_mode < 0:
+                    inds = np.arange(self._output_sample_set._dim)
+                else:
+                    inds = self._iteration
+            else:  # default is to return all indices
+                inds = np.arange(self._output_sample_set._dim)
+        
+        if isinstance(inds, int):
+            inds = [inds]  # use just one output QoI
+        
+        self._setup[self._iteration]['inds'] = inds
+        if pushforward:
+            self.compute_pushforward()
+
+    def get_indices(self, iteration=None):
+        if iteration is None:
+            iteration = self._iteration
+        return self._setup[iteration]['inds']
 
     def data_driven(self, data=None):
         r"""
@@ -3164,7 +3227,13 @@ class discretization(object):
         return self._setup
     
     def default_setup(self):
-        self._setup[self._iteration] = {'mode': 0, 'qoi':'SWE', 'obs': None, 'pre': None}
+        # check for data-driven with
+        # if not abs(col): ... do normal. if 1, current inds, if -1, all inds.
+        self._setup[self._iteration] = {'col': 0,
+                                        'qoi':'SWE',
+                                        'obs': None,
+                                        'pre': None,
+                                        'model': None}
         
     def set_initial_densities(self):
         r"""

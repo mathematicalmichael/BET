@@ -450,7 +450,7 @@ class sampler(object):
 
         comm.barrier()
         
-        discretization.model = self.lb_model  # attach model to discretization
+        discretization._setup[0]['model'] = self.lb_model  # attach model to discretization
         return discretization
 
     def create_random_discretization(self, sample_type, input_obj,
@@ -521,7 +521,8 @@ class sampler(object):
         
         # Append output values
         num_new_obs = new._output_sample_set._dim
-        new._output_sample_set._dim += disc._output_sample_set._dim
+        new_old_obs = new._output_sample_set.get_dim()
+        new._output_sample_set._dim = new_old_obs + num_new_obs
         new_outputs = new._output_sample_set._values  # reference
         old_outputs = disc._output_sample_set._values
         new_outputs = np.concatenate((old_outputs, new_outputs), axis=1)
@@ -543,6 +544,8 @@ class sampler(object):
         if globalize:
             new._output_sample_set.global_to_local()
 
-        new._output_sample_set.model = self.lb_model # we will use these for recursion
-        new._    
+        # TO-DO: appropriately set information for new sample set. anything that didn't carry over.
+        new._setup[0]['model'] = self.lb_model # we will use these for recursion
+        new._setup[0]['inds'] = np.arange(num_new_obs) + new_old_obs
+        # now overwrite this stuff from/into disc and return it. 
         return new
