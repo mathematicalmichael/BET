@@ -38,10 +38,14 @@ def prob_on_emulated_samples(discretization, globalize=True):
 
     # Check dimensions
     discretization.check_nums()
-    op_num = discretization._output_probability_set.check_num()
     discretization._emulated_input_sample_set.check_num()
 
     # Check for necessary properties
+    if discretization._output_probability_set is None:
+        raise AttributeError("Please define output probabilities.")
+    else:
+        op_num = discretization._output_probability_set.check_num()
+
     if discretization._emulated_ii_ptr_local is None:
         discretization.set_emulated_ii_ptr(globalize=False)
 
@@ -80,19 +84,23 @@ def prob(discretization, globalize=True):
 
     # Check Dimensions
     discretization.check_nums()
-    op_num = discretization._output_probability_set.check_num()
 
     # Check for necessary properties, infer initial probabilities from volumes
+    if discretization._output_probability_set is None:
+        raise AttributeError("Please define output probabilities.")
+    else:
+        op_num = discretization._output_probability_set.check_num()
+
     if discretization._input_sample_set._probabilities_local is None:
-        if discretization._input_sample_set._volumes_local is not None:
-            discretization._input_sample_set._probabilities_local =\
-                discretization._input_sample_set._volumes_local.copy()
-        else:  # or use MC assumption in absense of other information
+        if discretization._input_sample_set._volumes_local is None:
             msg = "No volumes or initial probabilities. "
             msg += "Making MC assumption for both attributes."
             logging.warn(msg)
-            discretization._input_sample_set.estimate_probabilities_mc()
-            discretization._input_sample_set.estimate_volumes_mc()
+            discretization._input_sample_set.estimate_probability_mc()
+            discretization._input_sample_set.estimate_volume_mc()
+        else:  # or use MC assumption in absense of other information
+            discretization._input_sample_set._probabilities_local =\
+                discretization._input_sample_set._volumes_local.copy()
 
     # Calculate Probabilities
     if discretization._input_sample_set._values_local is None:
