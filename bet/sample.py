@@ -3041,7 +3041,7 @@ class discretization(object):
         if iteration is None:
             iteration = self._iteration
 
-        inds = self.get_indices(iteration) # returns ALL if None
+        inds = self.get_indices(iteration)  # returns ALL if None
         dim = len(inds)
         if self._output_probability_set is None:
             self.set_output_probability_set(sample_set(dim))
@@ -3058,9 +3058,7 @@ class discretization(object):
             if self._output_probability_set._reference_value is None:
                 self._output_probability_set._reference_value = np.zeros(dim)
                 self.set_data_from_reference(dist=norm(**kwds))
-        
-        
-        
+
         if self._output_probability_set._reference_value is not None:
             try:  # overwrite if new location is passed.
                 ref_val = kwds['loc']
@@ -3070,9 +3068,9 @@ class discretization(object):
                     ref_val = np.array(ref_val)
                 self._output_probability_set._reference_value = ref_val
             except KeyError:  # if no, location, get it.
-                ref_val = self.get_data() # center it
+                ref_val = self.get_data()  # center it
                 kwds['loc'] = ref_val
-        else: # no previous reference value
+        else:  # no previous reference value
             try:  # was it passed as location?
                 ref_val = kwds['loc']
                 if isinstance(ref_val, int) or isinstance(ref_val, float):
@@ -3080,7 +3078,7 @@ class discretization(object):
                 elif isinstance(ref_val, list) or isinstance(ref_val, tuple):
                     ref_val = np.array(ref_val)
                 self._output_probability_set._reference_value = ref_val
-            except KeyError:  # no location, so infer it from distribution 
+            except KeyError:  # no location, so infer it from distribution
                 ref_val = dist.median()
                 self._output_probability_set._reference_value = ref_val
 
@@ -3088,12 +3086,12 @@ class discretization(object):
         # Store distribution for iterated re-use
         obs_dist = self._output_probability_set._distribution
         self._setup[iteration]['obs'] = obs_dist
-        
+
         # Store information about standard deviation for later use.
         logging.info("Setting standard deviation information for output data.")
         self._setup[iteration]['std'] = obs_dist.std()
         self._output_probability_set._dim = dim  # write dimension info
-        
+
         # update the reference value.
         self._output_probability_set._reference_value = ref_val
 
@@ -3147,7 +3145,7 @@ class discretization(object):
         data = self.format_output_data(x=x, iteration=iteration)
         num, dim = data.shape
         out = np.zeros(num)
-    
+
         for i in range(0, iteration+1):  # get all previous
             pre = self._setup[i]['pre']  # load predicted dist
             data = self.format_output_data(x=x, iteration=i)
@@ -3263,9 +3261,10 @@ class discretization(object):
                 dim = len(inds)
                 unique = len(np.unique(inds))
                 model = self._setup[model_num]['model']
-                z = model(x).reshape(-1, unique)[:, inds]  # ensure model output size
-                y = np.concatenate((y,z), axis=1) 
-            y = y[:, 1:] # remove zeros
+                # ensure model output size
+                z = model(x).reshape(-1, unique)[:, inds]
+                y = np.concatenate((y, z), axis=1)
+            y = y[:, 1:]  # remove zeros
         den = self.initial_pdf(x)*self.ratio_pdf(y)
         if x is not None:
             assert len(den) == x.shape[0]
@@ -3334,7 +3333,7 @@ class discretization(object):
         else:
             raise ValueError("Choose mode from [SWE, MSE, SSE]")
         # always returning 1-D output from this function.
-        return qoi.reshape(-1,1)
+        return qoi.reshape(-1, 1)
 
     def format_output_data(self, x=None, iteration=None):
         if iteration is None:  # get current if None
@@ -3436,7 +3435,7 @@ class discretization(object):
             noise_model = self._output_probability_set._distribution
         else:
             noise_model = dist
-        
+
         if Q_ref is None:
             logging.info("Problem with output reference value.")
             model = self._setup[iteration]['model']
@@ -3451,11 +3450,11 @@ class discretization(object):
             # support repeated observations using indices. correct length.
             Q_ref = Q_ref[inds]
 
-        
         # temporarily re-set dimension correctly so that the noise is drawn properly
         unique = len(np.unique(inds))
         self._output_probability_set._dim = unique
-        Q_ref += self._output_probability_set.rvs(dim//unique, dist=noise_model).ravel()
+        Q_ref += self._output_probability_set.rvs(
+            dim//unique, dist=noise_model).ravel()
         if not self._setup[iteration]['col']:
             Q_ref -= self._output_probability_set._reference_value
         # set noisy observation as new data vector.
@@ -3504,7 +3503,7 @@ class discretization(object):
                     # if data-driven, overwrite now that we have it's info.
                     if self._setup[iteration]['col']:
                         self._setup[iteration]['obs'] = None
-        
+
         self._setup[self._iteration]['std'] = std
 
     def get_std(self, iteration=None):
@@ -3526,13 +3525,13 @@ class discretization(object):
         """
         if inds is None:
             inds = self.get_indices()  # get current indices, or return all.
-        
+
         if isinstance(inds, int):
             dim = 1
         else:
             dim = len(inds)  # we now have our problem dimension specified.
             self._setup[self._iteration]['inds'] = inds
-    
+
         self._setup[self._iteration]['col'] = True
         self._setup[self._iteration]['obs'] = None  # should not use it.
         # reformat prior Q if needed.
@@ -3541,10 +3540,12 @@ class discretization(object):
             self._output_probability_set = sample_set(dim)
             from scipy.stats.distributions import norm
             if std is not None:
-                self._output_probability_set._distribution = norm(loc=0, scale=std)
+                self._output_probability_set._distribution = norm(
+                    loc=0, scale=std)
             else:
                 logging.warn("Assuming data has unit variance.")
-                self._output_probability_set._distribution = norm(loc=0, scale=1)
+                self._output_probability_set._distribution = norm(
+                    loc=0, scale=1)
                 std = 1
 
         if std is None:
@@ -3553,7 +3554,8 @@ class discretization(object):
                 logging.log("Missing std, be careful.")
             else:
                 from scipy.stats.distributions import norm
-                self._output_probability_set._distribution = norm(loc=0, scale=std)
+                self._output_probability_set._distribution = norm(
+                    loc=0, scale=std)
         else:
             from scipy.stats.distributions import norm
             self.set_std(std)
@@ -3568,18 +3570,18 @@ class discretization(object):
                 Q_ref = np.array(Q_ref)
 
             if len(Q_ref) != len(inds):  # if lengths mismatch,
-                Q_ref = Q_ref[inds] # bootstrapping data
+                Q_ref = Q_ref[inds]  # bootstrapping data
 
         else:  # if Q_ref is empty, attempt to write with data.
             Q_ref = data
-        
-        # if data is provided, use it. 
+
+        # if data is provided, use it.
         if data is not None:
             if len(data) == dim:
                 Q_ref = data
             else:
                 raise dim_not_matching("Data dimension mismatch.")
-        
+
         # can still be None if data was None. Try to fix this.
         if Q_ref is None:
             if data is None:
@@ -3593,12 +3595,12 @@ class discretization(object):
                     raise dim_not_matching("Data dimension mismatch.")
                 else:
                     Q_ref = data
-        
+
         if isinstance(Q_ref, int) or isinstance(Q_ref, float):
             Q_ref = np.array([Q_ref])
         elif isinstance(Q_ref, list) or isinstance(Q_ref, tuple):
             Q_ref = np.array(Q_ref)
-        
+
         # now that all checks are satisfied, write the data.
         self._output_probability_set._reference_value = Q_ref
 
