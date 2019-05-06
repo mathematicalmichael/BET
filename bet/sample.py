@@ -3256,14 +3256,22 @@ class discretization(object):
         else:
             num = x.shape[0]
             y = np.zeros((x.shape[0], 1))  # temporary vector of correct shape
+            
+            last_model = None
             for model_num in range(iteration+1):  # map through every model
                 inds = self.get_indices(iteration)
                 dim = len(inds)
                 unique = len(np.unique(inds))
                 model = self._setup[model_num]['model']
                 # ensure model output size
-                z = model(x).reshape(-1, unique)[:, inds]
-                y = np.concatenate((y, z), axis=1)
+                if model is not None:
+                    z = model(x).reshape(-1, unique)[:, inds]
+                    y = np.concatenate((y, z), axis=1)
+                    last_model = model 
+                else:  # if no new model, attempt to re-use old one
+                    logging.warn("Iteration %i: Re-using model for new samples."%model_num)
+                    z = last_model(x).reshape(-1, unique)[:, inds]
+                    y = np.concatenate((y, z), axis=1)
             y = y[:, 1:]  # remove zeros
         den = self.initial_pdf(x)*self.ratio_pdf(y)
         if x is not None:
@@ -3395,7 +3403,8 @@ class discretization(object):
         (if breaks is a number), or by a given sequence (if passed as list/tuple).
         """
         # what other settings do we need to fix if this happens?
-        dim = self._output_sample_set._dim
+        inds = self.get_indices()
+        dim = len(inds)
         if isinstance(breaks, int):
             if dim % breaks != 0:  # can we divide evenly?
                 raise ValueError(
@@ -3404,7 +3413,7 @@ class discretization(object):
                 num_iterations = dim // breaks
             for i in range(num_iterations):
                 self.iterate()
-                self.set_indices(np.arange(breaks) + i*breaks, iteration=i)
+                self.set_indices(list(np.array(inds)[np.arange(breaks) + i*breaks]), iteration=i)
         else:  # assuming a list is passed
             last_ind = 0
             for i, br in enumerate(breaks):
@@ -3569,7 +3578,7 @@ class discretization(object):
             elif isinstance(Q_ref, list) or isinstance(Q_ref, tuple):
                 Q_ref = np.array(Q_ref)
 
-            if len(Q_ref) != len(inds):  # if lengths mismatch,
+            if len(Q_ref) != dim:  # if lengths mismatch,
                 Q_ref = Q_ref[inds]  # bootstrapping data
 
         else:  # if Q_ref is empty, attempt to write with data.
