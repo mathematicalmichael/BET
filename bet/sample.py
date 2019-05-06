@@ -3256,7 +3256,7 @@ class discretization(object):
         else:
             num = x.shape[0]
             y = np.zeros((x.shape[0], 1))  # temporary vector of correct shape
-            
+
             last_model = None
             for model_num in range(iteration+1):  # map through every model
                 inds = self.get_indices(iteration)
@@ -3267,9 +3267,10 @@ class discretization(object):
                 if model is not None:
                     z = model(x).reshape(-1, unique)[:, inds]
                     y = np.concatenate((y, z), axis=1)
-                    last_model = model 
+                    last_model = model
                 else:  # if no new model, attempt to re-use old one
-                    logging.warn("Iteration %i: Re-using model for new samples."%model_num)
+                    logging.warn(
+                        "Iteration %i: Re-using model for new samples." % model_num)
                     z = last_model(x).reshape(-1, unique)[:, inds]
                     y = np.concatenate((y, z), axis=1)
             y = y[:, 1:]  # remove zeros
@@ -3413,7 +3414,8 @@ class discretization(object):
                 num_iterations = dim // breaks
             for i in range(num_iterations):
                 self.iterate()
-                self.set_indices(list(np.array(inds)[np.arange(breaks) + i*breaks]), iteration=i)
+                self.set_indices(
+                    list(np.array(inds)[np.arange(breaks) + i*breaks]), iteration=i)
         else:  # assuming a list is passed
             last_ind = 0
             for i, br in enumerate(breaks):
