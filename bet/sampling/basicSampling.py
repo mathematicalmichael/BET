@@ -539,7 +539,7 @@ class sampler(object):
         if data is None:  # otherwise, append values
             if new_data is not None:  # reference input must have been specified
                 Q_ref = disc._output_probability_set._reference_value
-                new_data += disc._output_probability_set.pdf()
+                new_data += disc._output_probability_set.rvs(len(new_data))
                 # add to noisy list
                 data = np.concatenate((Q_ref, new_data), axis=1)
         else:  # data that is passed is assumed to be noisy.
