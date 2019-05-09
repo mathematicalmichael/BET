@@ -452,7 +452,7 @@ class sampler(object):
 
         # Attach necessary attributes to discretization
         discretization._setup[0]['model'] = self.lb_model
-        discretization._setup[0]['inds'] = np.arange(output_dim)
+        discretization._setup[0]['inds'] = list(np.arange(output_dim))
 
         return discretization
 
@@ -539,7 +539,16 @@ class sampler(object):
         if data is None:  # otherwise, append values
             if new_data is not None:  # reference input must have been specified
                 Q_ref = disc._output_probability_set._reference_value
-                new_data += disc._output_probability_set.rvs(len(new_data))
+                noise = disc._setup[disc._iteration]['obs'] # try to infer observed
+                if noise is None:
+                    std = disc._setup[disc._iteration]['std']
+                    if std is None:
+                        raise AttributeError("Could not infer noise model")
+                    else:
+                        logging.warn("Missing noise model but std present. Assuming Normal.")
+                        noise = scipy.stats.distributions.norm(scale=std)
+                new_data += disc._output_probability_set.rvs(len(new_data),
+                                                             dist=noise)
                 # add to noisy list
                 data = np.concatenate((Q_ref, new_data), axis=1)
         else:  # data that is passed is assumed to be noisy.
