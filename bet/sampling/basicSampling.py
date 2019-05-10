@@ -452,7 +452,7 @@ class sampler(object):
 
         # Attach necessary attributes to discretization
         discretization._setup[0]['model'] = self.lb_model
-        discretization._setup[0]['inds'] = list(np.arange(output_dim))
+        discretization._setup[0]['ind'] = list(np.arange(output_dim))
 
         return discretization
 
@@ -569,12 +569,12 @@ class sampler(object):
         new._setup = discretization._setup.copy()
         new._setup[new._iteration]['model'] = self.lb_model
         # if inds is None, keep using all the data.
-        if discretization._setup[discretization._iteration]['inds'] is not None:
+        if discretization._setup[discretization._iteration]['ind'] is not None:
             # use just new data by default if previous inds existed
-            new._setup[new._iteration]['inds'] = np.arange(
+            new._setup[new._iteration]['ind'] = np.arange(
                 num_new_obs) + new_old_obs
-        else:
-            new._setup[new._iteration]['inds'] = None
+        else:  # if None, copy.
+            new._setup[new._iteration]['ind'] = None
         noise = discretization._setup[discretization._iteration]['std']
         new._setup[new._iteration]['std'] = noise  # inherit noise distribution
         data_driven = discretization._setup[discretization._iteration]['col']
