@@ -539,13 +539,15 @@ class sampler(object):
         if data is None:  # otherwise, append values
             if new_data is not None:  # reference input must have been specified
                 Q_ref = disc._output_probability_set._reference_value
-                noise = disc._setup[disc._iteration]['obs'] # try to infer observed
+                # try to infer observed
+                noise = disc._setup[disc._iteration]['obs']
                 if noise is None:
                     std = disc._setup[disc._iteration]['std']
                     if std is None:
                         raise AttributeError("Could not infer noise model")
                     else:
-                        logging.warn("Missing noise model but std present. Assuming Normal.")
+                        logging.warn(
+                            "Missing noise model but std present. Assuming Normal.")
                         noise = scipy.stats.distributions.norm(scale=std)
                 new_data += disc._output_probability_set.rvs(len(new_data),
                                                              dist=noise)

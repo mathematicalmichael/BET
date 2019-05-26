@@ -453,29 +453,29 @@ class Test_sample_set(unittest.TestCase):
         """
         Test set/get distribution and domain inference.
         """
-        domain = np.array([[0,1] for _ in range(self.dim)])
+        domain = np.array([[0, 1] for _ in range(self.dim)])
         import scipy
         from scipy.stats.distributions import uniform
-        
+
         # default behavior is unit hypercube
         self.sam_set.set_distribution()
         assert isinstance(self.sam_set.get_distribution(),
                           scipy.stats.distributions.rv_frozen)
-        
+
         # set frozen - should be able to interpret dimension.
         dist = uniform(loc=0, scale=1)
         self.sam_set.set_distribution(dist)
         assert isinstance(self.sam_set.get_distribution(),
                           scipy.stats.distributions.rv_frozen)
-        
+
         # ensure domain was properly inferred
-        nptest.assert_array_equal(domain, self.sam_set.get_domain()) 
+        nptest.assert_array_equal(domain, self.sam_set.get_domain())
         # set continuous and make sure it gets instantiated
         self.sam_set.set_distribution(uniform)
         assert isinstance(self.sam_set.get_distribution(),
                           scipy.stats.distributions.rv_frozen)
-        nptest.assert_array_equal(domain, self.sam_set.get_domain()) 
-        
+        nptest.assert_array_equal(domain, self.sam_set.get_domain())
+
         # try another domain
         new = [1 for _ in range(self.dim)]
         self.sam_set.set_distribution(uniform(loc=1,
@@ -483,22 +483,22 @@ class Test_sample_set(unittest.TestCase):
         assert isinstance(self.sam_set.get_distribution(),
                           scipy.stats.distributions.rv_frozen)
         nptest.assert_array_equal(domain+1,
-                                  self.sam_set.get_domain()) 
-         # try another domain and handler.
+                                  self.sam_set.get_domain())
+        # try another domain and handler.
         self.sam_set.set_dist(uniform(loc=new,
-                                              scale=0.5))
+                                      scale=0.5))
         assert isinstance(self.sam_set.get_dist(),
                           scipy.stats.distributions.rv_frozen)
         nptest.assert_array_equal(1+domain*0.5,
                                   self.sam_set.get_domain())
-        
+
         # incorrect dimension should raise error
         try:
             self.sam_set.set_distribution(uniform(loc=0,
-                                              scale=[1, 1, 1, 1]))
+                                                  scale=[1, 1, 1, 1]))
         except sample.dim_not_matching:
             pass
-        
+
     def test_generate_samples(self):
         """
         Test random sample generation.
@@ -519,8 +519,7 @@ class Test_sample_set(unittest.TestCase):
         for num in [1, 10, 50, 100]:
             self.sam_set.generate_samples(num)
             assert self.sam_set.check_num() == num
-        
-    
+
     def test_rvs(self):
         """
         Test ability to use rvs generation with correct shape.
@@ -536,7 +535,7 @@ class Test_sample_set(unittest.TestCase):
         for num in [1, 10, 50, 100]:
             self.sam_set.set_values(self.sam_set.rvs(num, dist=norm()))
             assert self.sam_set.check_num() == num
-    
+
     def test_pdf(self):
         """
         Test pdf capabilities
@@ -549,7 +548,7 @@ class Test_sample_set(unittest.TestCase):
             y = self.sam_set.pdf(x=x, dist=dst(loc=0, scale=1))
             tru = dst.pdf(x, loc=0, scale=1).prod(axis=1)
             nptest.assert_array_equal(tru, y)
-            
+
     def test_cdf(self):
         """
         Test cdf capabilities
@@ -558,11 +557,27 @@ class Test_sample_set(unittest.TestCase):
         self.sam_set.set_dist(dists.norm)
         self.sam_set.generate_samples(100)
         x = self.sam_set.get_values()
-        for dst in [dists.norm, dists.uniform]:     
+        for dst in [dists.norm, dists.uniform]:
             tru = dst.cdf(x, loc=1, scale=2).prod(axis=1)
             z = self.sam_set.cdf(x=x, dist=dst(loc=1, scale=2))
             nptest.assert_array_equal(tru, z)
-            
+
+    def test_estimate_probability_mc(self):
+        """
+        Test MC assumption in probabilities.
+        """
+        import scipy.stats.distributions as dists
+        self.sam_set.set_dist(dists.norm)
+        for num in [1, 10, 50, 100]:
+            self.sam_set.generate_samples(num)
+            self.sam_set.estimate_probability_mc()
+            assert len(np.unique(self.sam_set.get_probabilities())) == 1
+            assert self.sam_set.get_probabilities()[0] == 1.0/num
+            self.sam_set.estimate_probability_mc(globalize=False)
+            self.sam_set.local_to_global()
+            assert len(np.unique(self.sam_set.get_probabilities())) == comm.size
+
+
 class Test_sample_set_1d(Test_sample_set):
     def setUp(self):
         self.dim = 1
