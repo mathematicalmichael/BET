@@ -1236,7 +1236,8 @@ class sample_set_base(object):
             except ValueError:
                 return dist.rvs(size=(num, 1))
 
-    def generate_samples(self, num_samples=None, globalize=True, dist=None, *args, **kwds):
+    def generate_samples(self, num_samples=None, globalize=True,
+                         dist=None, *args, **kwds):
         """
         Generate i.i.d samples according to distribution
         """
@@ -1245,7 +1246,8 @@ class sample_set_base(object):
         # define local number of samples
         num_samples_local = int((num_samples/comm.size) +
                                 (comm.rank < num_samples % comm.size))
-        self.set_values_local(self.rvs(num_samples_local, dist, *args, **kwds))
+        self.set_values_local(self.rvs(num_samples_local, 
+                                       dist, *args, **kwds))
         comm.barrier()
         self.update_bounds_local()
         if globalize:
@@ -1323,8 +1325,8 @@ class sample_set_base(object):
 
     def estimate_probability_mc(self, globalize=True):
         """
-        Give all cells the same probability fraction based on the Monte Carlo
-        assumption.
+        Give all cells the same probability fraction
+        based on the Monte Carlo assumption.
         """
         num = self.check_num()
         if globalize:
@@ -1477,8 +1479,9 @@ def load_discretization_parallel(file_name, discretization_name=None):
         for attrname in discretization.sample_set_names:
             if attrname is not '_input_sample_set' and \
                     attrname is not '_output_sample_set':
-                setattr(loaded_disc, attrname, load_sample_set(file_name,
-                                                               discretization_name+attrname))
+                setattr(loaded_disc, attrname,
+                        load_sample_set(file_name,
+                                        discretization_name+attrname))
 
         # re-localize if necessary
         if file_name.startswith('proc_') and comm.size > 1 \
