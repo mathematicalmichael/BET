@@ -1216,12 +1216,15 @@ class sample_set_base(object):
         """
         return self._distribution
 
-    def rvs(self, num=1, dist=None):
+    def rvs(self, num=1, dist=None, *args, **kwds):
         """
         Returns correctly-shaped random variates.
         """
         if dist is None:
             dist = self._distribution
+        # instantiate class if need be.
+        if isinstance(dist, scipy.stats.distributions.rv_continuous):
+            dist = dist(*args, **kwds)
         if isinstance(dist, scipy.stats.gaussian_kde):
             return dist.resample(num).T
         else:
@@ -1233,7 +1236,7 @@ class sample_set_base(object):
             except ValueError:
                 return dist.rvs(size=(num, 1))
 
-    def generate_samples(self, num_samples=None, globalize=True, dist=None):
+    def generate_samples(self, num_samples=None, globalize=True, dist=None, *args, **kwds):
         """
         Generate i.i.d samples according to distribution
         """
@@ -1242,7 +1245,7 @@ class sample_set_base(object):
         # define local number of samples
         num_samples_local = int((num_samples/comm.size) +
                                 (comm.rank < num_samples % comm.size))
-        self.set_values_local(self.rvs(num_samples_local, dist))
+        self.set_values_local(self.rvs(num_samples_local, dist, *args, **kwds))
         comm.barrier()
         self.update_bounds_local()
         if globalize:
@@ -3460,7 +3463,7 @@ class discretization(object):
         if iteration is None:
             iteration = self._iteration
 
-        if data is None:
+        if data is None: # TK - set reference without noise? 
             data = self.get_data(iteration)
 
         dim = len(data)
@@ -3468,8 +3471,12 @@ class discretization(object):
         if self._output_probability_set is None:
             logging.warn("Missing output probability set. Creating.")
             self._output_probability_set = sample_set(dim)
-        
-        self._output_probability_set._reference_value = data
+
+        if inds is None:
+            inds = np.arange(len(data))
+        else:
+            inds = self.get_data_indices(iteration)
+        self._output_probability_set._reference_value[inds] = data
         
         if std is None:
             if self._setup[self._iteration]['std'] is None:

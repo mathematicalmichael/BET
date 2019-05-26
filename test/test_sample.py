@@ -449,7 +449,120 @@ class Test_sample_set(unittest.TestCase):
         self.sam_set.set_domain(domain)
         nptest.assert_array_equal(domain, self.sam_set.get_domain())
 
-
+    def test_distribution_and_domain(self):
+        """
+        Test set/get distribution and domain inference.
+        """
+        domain = np.array([[0,1] for _ in range(self.dim)])
+        import scipy
+        from scipy.stats.distributions import uniform
+        
+        # default behavior is unit hypercube
+        self.sam_set.set_distribution()
+        assert isinstance(self.sam_set.get_distribution(),
+                          scipy.stats.distributions.rv_frozen)
+        
+        # set frozen - should be able to interpret dimension.
+        dist = uniform(loc=0, scale=1)
+        self.sam_set.set_distribution(dist)
+        assert isinstance(self.sam_set.get_distribution(),
+                          scipy.stats.distributions.rv_frozen)
+        
+        # ensure domain was properly inferred
+        nptest.assert_array_equal(domain, self.sam_set.get_domain()) 
+        # set continuous and make sure it gets instantiated
+        self.sam_set.set_distribution(uniform)
+        assert isinstance(self.sam_set.get_distribution(),
+                          scipy.stats.distributions.rv_frozen)
+        nptest.assert_array_equal(domain, self.sam_set.get_domain()) 
+        
+        # try another domain
+        new = [1 for _ in range(self.dim)]
+        self.sam_set.set_distribution(uniform(loc=1,
+                                              scale=new))
+        assert isinstance(self.sam_set.get_distribution(),
+                          scipy.stats.distributions.rv_frozen)
+        nptest.assert_array_equal(domain+1,
+                                  self.sam_set.get_domain()) 
+         # try another domain and handler.
+        self.sam_set.set_dist(uniform(loc=new,
+                                              scale=0.5))
+        assert isinstance(self.sam_set.get_dist(),
+                          scipy.stats.distributions.rv_frozen)
+        nptest.assert_array_equal(1+domain*0.5,
+                                  self.sam_set.get_domain())
+        
+        # incorrect dimension should raise error
+        try:
+            self.sam_set.set_distribution(uniform(loc=0,
+                                              scale=[1, 1, 1, 1]))
+        except sample.dim_not_matching:
+            pass
+        
+    def test_generate_samples(self):
+        """
+        Test random sample generation.
+        """
+        # default to uniform hypercube
+        self.sam_set.set_distribution()
+        for num in [1, 10, 50, 100]:
+            self.sam_set.generate_samples(num)
+            assert self.sam_set.check_num() == num
+        from scipy.stats.distributions import uniform
+        # make sure keyword gets passed to continuous distribution.
+        self.sam_set.set_distribution(uniform, loc=2)
+        for num in [1, 10, 50, 100]:
+            self.sam_set.generate_samples(num)
+            assert self.sam_set.check_num() == num
+        # frozen distribution
+        self.sam_set.set_distribution(uniform(loc=2))
+        for num in [1, 10, 50, 100]:
+            self.sam_set.generate_samples(num)
+            assert self.sam_set.check_num() == num
+        
+    
+    def test_rvs(self):
+        """
+        Test ability to use rvs generation with correct shape.
+        """
+        # passing continuous distribution => should convert to frozen.
+        from scipy.stats.distributions import uniform
+        x = self.sam_set.rvs(dist=uniform)
+        assert len(x) == 1
+        from scipy.stats.distributions import norm
+        x = self.sam_set.rvs(dist=norm, loc=1)
+        assert len(x) == 1
+        # now test setting using frozen distributions
+        for num in [1, 10, 50, 100]:
+            self.sam_set.set_values(self.sam_set.rvs(num, dist=norm()))
+            assert self.sam_set.check_num() == num
+    
+    def test_pdf(self):
+        """
+        Test pdf capabilities
+        """
+        import scipy.stats.distributions as dists
+        self.sam_set.set_dist(dists.norm)
+        self.sam_set.generate_samples(100)
+        x = self.sam_set.get_values()
+        for dst in [dists.norm, dists.uniform]:
+            y = self.sam_set.pdf(x=x, dist=dst(loc=0, scale=1))
+            tru = dst.pdf(x, loc=0, scale=1).prod(axis=1)
+            nptest.assert_array_equal(tru, y)
+            
+    def test_cdf(self):
+        """
+        Test cdf capabilities
+        """
+        import scipy.stats.distributions as dists
+        self.sam_set.set_dist(dists.norm)
+        self.sam_set.generate_samples(100)
+        x = self.sam_set.get_values()
+        for dst in [dists.norm, dists.uniform]:     
+            tru = dst.cdf(x, loc=1, scale=2).prod(axis=1)
+            z = self.sam_set.cdf(x=x, dist=dst(loc=1, scale=2))
+            nptest.assert_array_equal(tru, z)
+            
 class Test_sample_set_1d(Test_sample_set):
     def setUp(self):
         self.dim = 1
