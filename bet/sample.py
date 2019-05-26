@@ -2864,9 +2864,12 @@ class discretization(object):
         co = self._output_sample_set.clip(cnum)
         return discretization(input_sample_set=ci,
                               output_sample_set=co,
-                              output_probability_set=self._output_probability_set,
-                              emulated_input_sample_set=self._emulated_input_sample_set,
-                              emulated_output_sample_set=self._emulated_output_sample_set)
+                              output_probability_set=
+                              self._output_probability_set,
+                              emulated_input_sample_set=
+                              self._emulated_input_sample_set,
+                              emulated_output_sample_set=
+                              self._emulated_output_sample_set)
 
     def merge(self, disc):
         """
@@ -3176,13 +3179,14 @@ class discretization(object):
     def iterate(self):
         # what to copy over? what to leave as default?
         self._iteration += 1
+        it = self._iteration
         self.default_setup()
         # copying this should basically function like "copying data"
-        self._setup[self._iteration]['obs'] = self._setup[self._iteration - 1]['obs']
-        self._setup[self._iteration]['pre'] = self._setup[self._iteration - 1]['pre']
-        self._setup[self._iteration]['std'] = self._setup[self._iteration - 1]['std']
-        self._setup[self._iteration]['col'] = self._setup[self._iteration - 1]['col']
-        self._setup[self._iteration]['inds'] = self._setup[self._iteration - 1]['inds']
+        self._setup[self._iteration]['obs'] = self._setup[it-1]['obs']
+        self._setup[self._iteration]['pre'] = self._setup[it-1]['pre']
+        self._setup[self._iteration]['std'] = self._setup[it-1]['std']
+        self._setup[self._iteration]['col'] = self._setup[it-1]['col']
+        self._setup[self._iteration]['inds'] = self._setup[it-1]['inds']
         pass
 
     def set_iteration(self, iteration=0):
@@ -3423,6 +3427,13 @@ class discretization(object):
         return qoi
 
     def set_repeated(self, repeat=None, iteration=None):
+        r"""
+        Toggle mode for repeated observations.
+        
+        :param repeat: output indices for repeated observations
+        :type repeat: `float` or `tuple` of :type:`int`, or `int`
+        
+        """
         if iteration is None:
             iteration = self._iteration
         if repeat is None:
@@ -3431,11 +3442,18 @@ class discretization(object):
             self._setup[iteration]['rep'] = list(np.array(repeat, dtype=int))
         else:
             if repeat < 0 or repeat > self._output_sample_set._dim:
-                raise ValueError(
-                    "Improper output index specified for repeated observations.")
+                msg =  "Improper output index specified"
+                msg += "for the case of repeated observations."
+                raise ValueError(msg)
             self._setup[iteration]['rep'] = int(repeat)
 
     def set_data_driven(self, collapse=True, iteration=None):
+        r"""
+        Toggle mode for data-driven map.
+        
+        :param bool collapse: option to collapse outputs to 1-D
+        
+        """
         if iteration is None:
             iteration = self._iteration
         self._setup[iteration]['col'] = collapse
