@@ -1246,14 +1246,21 @@ class sample_set_base(object):
         # define local number of samples
         num_samples_local = int((num_samples/comm.size) +
                                 (comm.rank < num_samples % comm.size))
-        self.set_values_local(self.rvs(num_samples_local, 
+        self.set_values_local(self.rvs(num_samples_local,
                                        dist, *args, **kwds))
-        comm.barrier()
         self.update_bounds_local()
+        self._probabilities_local = None
+        self._volumes_local = None
+        self._jacobians_local = None
+        comm.barrier()
+        
         if globalize:
             self.local_to_global()
         else:
             self._values = None
+        self._volumes = None
+        self._jacobians = None
+        self._probabilities = None
 
     def pdf(self, x=None, dist=None):
         r"""
@@ -1323,18 +1330,15 @@ class sample_set_base(object):
         assert len(cum) == x.shape[0]
         return cum.ravel()  # always return flattened
 
-    def estimate_probability_mc(self, globalize=True):
+    def estimate_probabilities_mc(self, globalize=True):
         """
         Give all cells the same probability fraction
         based on the Monte Carlo assumption.
         """
         num = self.check_num()
+        self._probabilities = 1.0/float(num)*np.ones((num,))
         if globalize:
-            self._probabilities = 1.0/float(num)*np.ones((num,))
             self.global_to_local()
-        else:
-            num_local = self.check_num_local()
-            self._probabilities_local = 1.0/float(num)*np.ones((num_local,))
 
 
 def save_discretization(save_disc, file_name, discretization_name=None,
@@ -2864,12 +2868,9 @@ class discretization(object):
         co = self._output_sample_set.clip(cnum)
         return discretization(input_sample_set=ci,
                               output_sample_set=co,
-                              output_probability_set=
-                              self._output_probability_set,
-                              emulated_input_sample_set=
-                              self._emulated_input_sample_set,
-                              emulated_output_sample_set=
-                              self._emulated_output_sample_set)
+                              output_probability_set=self._output_probability_set,
+                              emulated_input_sample_set=self._emulated_input_sample_set,
+                              emulated_output_sample_set=self._emulated_output_sample_set)
 
     def merge(self, disc):
         """
@@ -3429,10 +3430,10 @@ class discretization(object):
     def set_repeated(self, repeat=None, iteration=None):
         r"""
         Toggle mode for repeated observations.
-        
+
         :param repeat: output indices for repeated observations
         :type repeat: `float` or `tuple` of :type:`int`, or `int`
-        
+
         """
         if iteration is None:
             iteration = self._iteration
@@ -3442,7 +3443,7 @@ class discretization(object):
             self._setup[iteration]['rep'] = list(np.array(repeat, dtype=int))
         else:
             if repeat < 0 or repeat > self._output_sample_set._dim:
-                msg =  "Improper output index specified"
+                msg = "Improper output index specified"
                 msg += "for the case of repeated observations."
                 raise ValueError(msg)
             self._setup[iteration]['rep'] = int(repeat)
@@ -3450,9 +3451,9 @@ class discretization(object):
     def set_data_driven(self, collapse=True, iteration=None):
         r"""
         Toggle mode for data-driven map.
-        
+
         :param bool collapse: option to collapse outputs to 1-D
-        
+
         """
         if iteration is None:
             iteration = self._iteration
@@ -3743,6 +3744,7 @@ class discretization(object):
 
     def set_initial_densities(self):
         r"""
+        Hot mess. fix it up.
         """
         if self._values is None:
             raise AttributeError("Missing values.")

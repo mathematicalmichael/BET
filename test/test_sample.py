@@ -562,7 +562,7 @@ class Test_sample_set(unittest.TestCase):
             z = self.sam_set.cdf(x=x, dist=dst(loc=1, scale=2))
             nptest.assert_array_equal(tru, z)
 
-    def test_estimate_probability_mc(self):
+    def test_estimate_probabilities_mc(self):
         """
         Test MC assumption in probabilities.
         """
@@ -570,12 +570,9 @@ class Test_sample_set(unittest.TestCase):
         self.sam_set.set_dist(dists.norm)
         for num in [1, 10, 50, 100]:
             self.sam_set.generate_samples(num)
-            self.sam_set.estimate_probability_mc()
+            self.sam_set.estimate_probabilities_mc()
             assert len(np.unique(self.sam_set.get_probabilities())) == 1
             assert self.sam_set.get_probabilities()[0] == 1.0/num
-            self.sam_set.estimate_probability_mc(globalize=False)
-            self.sam_set.local_to_global()
-            assert len(np.unique(self.sam_set.get_probabilities())) == comm.size
 
 
 class Test_sample_set_1d(Test_sample_set):
@@ -1676,3 +1673,73 @@ class Test_cartesian_sample_set(unittest.TestCase):
         self.sam_set.exact_volume_lebesgue()
         volumes = self.sam_set.get_volumes()
         nptest.assert_array_almost_equal(volumes, [.25, 0.25, 0.25, 0.25, 0.0])
+
+
+class Test_sampling_discretization(unittest.TestCase):
+    def setUp(self):
+        self.dim1 = 3
+        self.num = 100
+        self.dim2 = 1
+        values1 = np.ones((self.num, self.dim1))
+        values2 = np.ones((self.num, self.dim2))
+        values3 = np.ones((self.num, self.dim2))
+        self.input_set = sample.sample_set(dim=self.dim1)
+        self.output_set = sample.sample_set(dim=self.dim2)
+        self.output_probability_set = sample.sample_set(dim=self.dim2)
+        self.input_set.set_values(values1)
+        self.output_set.set_values(values2)
+        self.output_probability_set.set_values(values3)
+        self.disc = sample.discretization(input_sample_set=self.input_set,
+                                          output_sample_set=self.output_set,
+                                          output_probability_set=self.output_probability_set)
+
+    def test_format_indices(self):
+        """
+        Test multitude of index-formatting options. 
+        """
+        # Single Float Test
+        a = 0.3
+        b = a-1
+        n = 50
+        set_inds = self.disc.format_indices  # shortened function handle
+        nptest.assert_array_equal(np.array(set_inds(n, a) +
+                                           set_inds(n, b)),
+                                  np.arange(n))
+
+        # Integer Test
+        nptest.assert_array_equal(np.array(set_inds(n, int(a*n)) +
+                                           set_inds(n, int(b*n))),
+                                  np.arange(n))
+
+        # List Test
+        nptest.assert_array_equal(np.array(set_inds(n, np.arange(n))),
+                                  np.arange(n))
+        nptest.assert_array_equal(np.array(set_inds(n, list(np.arange(n)))),
+                                  np.arange(n))
+
+        # Tuple Test(s)
+        for i in range(1, n):
+            nptest.assert_array_equal(np.array(set_inds(n+1, (i,))),
+                                      np.arange(0, n+1, i))
+            nptest.assert_array_equal(np.array(set_inds(n, None)),
+                                      np.arange(n))
+            nptest.assert_array_equal(np.array(set_inds(n, (i, 1))),
+                                      np.arange(n)[i::])
+            nptest.assert_array_equal(np.array(set_inds(n, (i, 2))),
+                                      np.arange(n)[np.arange(i, n, 2)])
+            nptest.assert_array_equal(np.array(set_inds(n, (i, 1.0, 3))),
+                                      np.arange(n)[np.arange(i, n, 3)])
+            nptest.assert_array_equal(np.array(set_inds(n, (i, n, 1))),
+                                      np.arange(n)[i::])
+            nptest.assert_array_equal(np.array(set_inds(n, (i, n, 2))),
+                                      np.arange(n)[np.arange(i, n, 2)])
+            nptest.assert_array_equal(np.array(set_inds(n, (i, n, 0.2))),
+                                      np.arange(n)[np.arange(i, n, int(0.2*n))])
+            nptest.assert_array_equal(np.array(set_inds(n, (0, 0.2, i))),
+                                      np.arange(n)[np.arange(0, int(0.2*n), i)])
+            nptest.assert_array_equal(np.array(set_inds(n, (1, 0.2, i))),
+                                      np.arange(n)[np.arange(1, int(0.2*n), i)])
+            nptest.assert_array_equal(np.array(set_inds(n, (0.2, 1.0, 1))),
+                                      np.arange(n)[np.arange(int(0.2*n), n, 1)])
+            nptest.assert_array_equal(np.array(set_inds(n, (0.2, n, 2))),
+                                      np.arange(n)[np.arange(int(0.2*n), n, 2)])
