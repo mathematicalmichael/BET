@@ -2459,7 +2459,7 @@ class discretization(object):
         #: iteration dictionary to hold information
         self._setup = {0: {'col': False,
                            'rep': False,
-                           'inds': None,
+                           'ind': None,
                            'qoi': 'SWE',
                            'std': None,
                            'obs': None,
@@ -3084,7 +3084,8 @@ class discretization(object):
             y = y[:, 1:]  # remove zeros
         self._output_sample_set._dim = y.shape[1]
         self._output_sample_set.set_values(y)
-        self._output_sample_set.set_reference_value(v)
+        if lam_ref is not None:
+            self._output_sample_set.set_reference_value(v)
 
     def set_observed(self, dist=None, iteration=None, *args, **kwds):
         r"""
@@ -3108,6 +3109,7 @@ class discretization(object):
         if self._output_probability_set is None:
             self.set_output_probability_set(sample_set(dim))
         self._output_probability_set._dim = dim  # will need this to match.
+        
         if dist is None:  # normal by default
             from scipy.stats.distributions import norm
             dist = norm
@@ -3119,11 +3121,11 @@ class discretization(object):
             # if empty reference, set it using normal assumption.
             if self._output_probability_set._reference_value is None:
                 self._output_probability_set._reference_value = np.zeros(dim)
-                self.set_data_from_reference(dist=norm(**kwds))
+                self.set_data_from_reference(dist=norm(*args, **kwds))
 
         if self._output_probability_set._reference_value is not None:
             try:  # overwrite if new location is passed.
-                ref_val = kwds['loc']
+                ref_val = dist.mean()
                 if isinstance(ref_val, int) or isinstance(ref_val, float):
                     ref_val = np.array([ref_val]*dim)
                 elif isinstance(ref_val, list) or isinstance(ref_val, tuple):
@@ -3133,17 +3135,14 @@ class discretization(object):
                 ref_val = self.get_data(iteration)  # center it
                 kwds['loc'] = ref_val
         else:  # no previous reference value
-            try:  # was it passed as location?
-                ref_val = kwds['loc']
-                if isinstance(ref_val, int) or isinstance(ref_val, float):
-                    ref_val = np.array([ref_val]*dim)
-                elif isinstance(ref_val, list) or isinstance(ref_val, tuple):
-                    ref_val = np.array(ref_val)
-                self._output_probability_set._reference_value = ref_val
-            except KeyError:  # no location, so infer it from distribution
-                ref_val = dist.median()
-                self._output_probability_set._reference_value = ref_val
-
+            logging.warn("Using observed distribution mean as data.")
+            ref_val = dist.mean()
+            if isinstance(ref_val, int) or isinstance(ref_val, float):
+                ref_val = np.array([ref_val]*dim)
+            elif isinstance(ref_val, list) or isinstance(ref_val, tuple):
+                ref_val = np.array(ref_val)
+            self._output_probability_set._reference_value = ref_val
+        
         self._output_probability_set.set_distribution(dist, *args, **kwds)
         # Store distribution for iterated re-use
         obs_dist = self._output_probability_set._distribution
@@ -3187,7 +3186,7 @@ class discretization(object):
         self._setup[self._iteration]['pre'] = self._setup[it-1]['pre']
         self._setup[self._iteration]['std'] = self._setup[it-1]['std']
         self._setup[self._iteration]['col'] = self._setup[it-1]['col']
-        self._setup[self._iteration]['inds'] = self._setup[it-1]['inds']
+        self._setup[self._iteration]['ind'] = self._setup[it-1]['ind']
         pass
 
     def set_iteration(self, iteration=0):
@@ -3472,7 +3471,14 @@ class discretization(object):
             return self._output_sample_set._reference_value[inds]
         elif self._output_probability_set._reference_value is None:
             inds = np.arange(self._output_sample_set._dim)
-            return self._output_sample_set._reference_value[inds]
+            if self._output_sample_set._reference_value is not None:
+                return self._output_sample_set._reference_value[inds]
+            else:
+                msg = "Output reference is None."
+                msg += "Will use median of observed as reference data!"
+                logging.warn(msg)
+                # Return zeros as placeholder.
+                return np.array([0 for _ in range(self._output_sample_set._dim)])
         else:  # (noisy) data is not None
             inds = self.get_data_indices(iteration)
             return self._output_probability_set._reference_value[inds]
@@ -3550,6 +3556,9 @@ class discretization(object):
         inds = self.format_indices(data_len, self._setup[iteration]['ind'])
         rep = self._setup[iteration]['rep']
         if rep is not None:  # handle repeated observations
+            if isinstance(rep, np.ndarray):
+                rep = list(rep)
+
             if isinstance(rep, list) or isinstance(rep, tuple):
                 rep_inds = list(np.tile(rep, len(inds)//len(rep)))
                 if len(rep_inds) != len(inds):  # data available that is unaccounted for
@@ -3559,8 +3568,9 @@ class discretization(object):
                     # add "missing" repeated values.
                     rep_inds.append(rep[:num_missing])
                 inds = rep_inds  # set as output
-            else:
+            else: # repeat vector of indices
                 inds = np.ones(len(inds), dtype=int)*rep
+
         return list(inds)
 
     def format_indices(self, data_len, inds):
@@ -3578,7 +3588,7 @@ class discretization(object):
                     inds = np.arange(int(data_len*(1+inds)), data_len)
                 else:  # inds = 0.0?
                     raise ValueError("Please specify nonzero index.")
-            else:  # bootstrap - if 1.0, just shuffle data
+            else:  # bootstrap if >= 1.0 to create 'larger' dataset
                 inds = np.random.randint(0, data_len, int(data_len*inds))
         elif isinstance(inds, int):  # first or last n entries
             if inds < 0:
@@ -3624,8 +3634,11 @@ class discretization(object):
             iteration = self._iteration
         # since we are accessing output values.
         inds = self.get_output_indices(iteration)
-
-        dim = len(inds)
+        
+        if dist is None:
+            logging.warn("Using observed as noise model.")
+            dist = self._setup[iteration]['obs']
+        
         # support repeating data.
         Q_ref = self._output_sample_set._reference_value
 
@@ -3635,14 +3648,26 @@ class discretization(object):
             lam_ref = self._input_sample_set._reference_value
             if lam_ref is not None:
                 if model is None:
-                    raise AttributeError("Missing model.")
+                    if dist is None:
+                        raise AttributeError("Missing model and observed.")
+                    else:
+                        logging.warn("Missing model. Using distribution.")
                 else:
                     logging.info("Using model to map input reference value.")
                     Q_ref = model(lam_ref)[inds]
         else:  # existing reference is correctly set
             # support repeated observations using indices. correct length.
             Q_ref = Q_ref[inds]
-
+        
+        if np.max(np.abs(dist.mean())) == 0:
+            noise = self._output_probability_set.rvs(dist=dist)
+            Q_ref += noise
+        else:
+            logging.warn("Non-homogeneous noise. Using random draw for data.")
+            Q_ref = self._output_probability_set.rvs(dist=dist)
+        
+        self._output_probability_set._reference_value = Q_ref
+        
         return Q_ref
 
     def set_std(self, std=None, iteration=None):

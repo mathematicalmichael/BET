@@ -1681,7 +1681,7 @@ class Test_sampling_discretization(unittest.TestCase):
         self.num = 100
         self.dim2 = 1
         values1 = np.ones((self.num, self.dim1))
-        values2 = np.ones((self.num, self.dim2))
+        values2 = np.random.randn(self.num, self.dim2)
         values3 = np.ones((self.num, self.dim2))
         self.input_set = sample.sample_set(dim=self.dim1)
         self.output_set = sample.sample_set(dim=self.dim2)
@@ -1691,7 +1691,8 @@ class Test_sampling_discretization(unittest.TestCase):
         self.output_probability_set.set_values(values3)
         self.disc = sample.discretization(input_sample_set=self.input_set,
                                           output_sample_set=self.output_set,
-                                          output_probability_set=self.output_probability_set)
+                                          output_probability_set=
+                                          self.output_probability_set)
 
     def test_format_indices(self):
         """
@@ -1743,3 +1744,32 @@ class Test_sampling_discretization(unittest.TestCase):
                                       np.arange(n)[np.arange(int(0.2*n), n, 1)])
             nptest.assert_array_equal(np.array(set_inds(n, (0.2, n, 2))),
                                       np.arange(n)[np.arange(int(0.2*n), n, 2)])
+
+    
+#     def test_solve_problem(self):
+#         """
+#         Test problem setup syntaxes. 
+#         """
+#         disc = self.disc
+#         disc.set_initial()
+#         disc.set_observed() # set_output_probability_set
+#         disc.set_predicted() # should be optional...
+#         disc.updated_pdf()
+#         disc.initial_pdf()
+#         disc.updated_pdf()
+
+    def test_set_observed_no_reference(self):
+        """
+        Test how observed behaves without reference output.
+        """
+        D = self.disc
+        for l in [1,2,3]:
+            D.set_observed(loc=l) # infer dimension correctly
+            D.get_data() 
+        
+    def test_set_observed_with_reference(self):
+        
+        D = self.disc
+        #D.set_output_probability_set
+        #D.set_data(np.ones(self.dim2)) # pass some actual data
+        #D.set_observed() # this now functions as noise model
