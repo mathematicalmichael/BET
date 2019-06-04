@@ -3035,10 +3035,22 @@ class discretization(object):
         self._output_probability_set.set_distribution(
             dist=obs.dist, scale=std, loc=data)
 
+    def get_initial_distribution(self):
+        return self._input_sample_set.get_distribution()
+
+    def get_initial(self):
+        return self.get_initial_distribution()
+
     def get_observed_distribution(self, iteration=None):
         if iteration is None:
             iteration = self._iteration
         return self._setup[iteration]['obs']
+
+    def get_observed(self, iteration=None):
+        return self.get_observed_distribution(iteration)
+    
+    def get_predicted(self, iteration=None):
+        return self.get_predicted_distribution(iteration)
 
     def get_predicted_distribution(self, iteration=None):
         if iteration is None:
@@ -3049,21 +3061,30 @@ class discretization(object):
         r"""
         Wrapper for `compute_pushforward`.
         """
-        return self.compute_pushforward(dist, iteration, *args, **kwds)
+        if iteration is None:
+            iteration = self._iteration
+        if dist is None:
+            return self.compute_pushforward(dist, iteration)
+        elif isinstance(dist, scipy.stats._distn_infrastructure.rv_frozen):
+            self._output_sample_set.set_distribution(dist, *args, **kwds)
+            self._setup[iteration]['pre'] = self._output_sample_set.get_distribution()
+        else:
+            return self.compute_pushforward(dist, iteration, *args, **kwds)
 
     def set_predicted(self, dist=None, iteration=None, *args, **kwds):
         r"""
         Wrapper for `compute_pushforward`.
         """
-        return self.compute_pushforward(dist, iteration, *args, **kwds)
+        return self.set_predicted_distribution(dist, iteration, *args, **kwds)
 
-    def set_initial(self, dist=None, *args, **kwds):
+    def set_initial(self, dist=None, num=None, *args, **kwds):
         r"""
         """
         self._input_sample_set.set_distribution(dist, *args, **kwds)
 
         # regenerate samples
-        num = self._input_sample_set.check_num()
+        if num is None:
+            num = self._input_sample_set.check_num()
         self._input_sample_set.generate_samples(num)
         lam_ref = self._input_sample_set._reference_value
         y = np.zeros((num, 1))  # temporary vector of correct shape
@@ -3300,6 +3321,11 @@ class discretization(object):
     def get_output_values(self):
         return self._output_sample_set._values
 
+    def set_model(self, model, iteration=None):
+        if iteration is None:
+            iteration = self._iteration
+        self._setup[iteration]['model'] = model
+
     def updated_pdf(self, x=None, iteration=None):
         r"""
         Evaluate the updated pdf on a provided set of points.
@@ -3483,18 +3509,16 @@ class discretization(object):
             inds = self.get_data_indices(iteration)
             return self._output_probability_set._reference_value[inds]
 
-    def set_data(self, data=None, std=None, inds=None, iteration=None):
+    def set_data(self, data, std=None, inds=None, iteration=None):
         r"""
         Write the reference value to the output probability set.
         (Bypass the checking of dimension).
         If you pass a noise level, we will take note of it.
         If one does not exist, create one to match the dimension.
+        inds = None default is to use all data.
         """
         if iteration is None:
             iteration = self._iteration
-
-        if data is None:  # TK - set reference without noise?
-            data = self.get_data(iteration)
 
         dim = len(data)
         self.set_indices(inds, iteration)
@@ -3506,7 +3530,7 @@ class discretization(object):
             inds = np.arange(len(data))
         else:
             inds = self.get_data_indices(iteration)
-        self._output_probability_set._reference_value[inds] = data
+        self._output_probability_set._reference_value[inds] = np.copy(data)
 
         if std is None:
             if self._setup[self._iteration]['std'] is None:
@@ -3555,7 +3579,7 @@ class discretization(object):
         data_len = len(self.get_data(iteration))
         inds = self.format_indices(data_len, self._setup[iteration]['ind'])
         rep = self._setup[iteration]['rep']
-        if rep is not None:  # handle repeated observations
+        if rep:  # handle repeated observations
             if isinstance(rep, np.ndarray):
                 rep = list(rep)
 
@@ -3570,7 +3594,8 @@ class discretization(object):
                 inds = rep_inds  # set as output
             else: # repeat vector of indices
                 inds = np.ones(len(inds), dtype=int)*rep
-
+        else:
+            inds = np.arange(data_len)
         return list(inds)
 
     def format_indices(self, data_len, inds):

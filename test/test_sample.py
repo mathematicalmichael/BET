@@ -12,6 +12,7 @@ import bet.sample as sample
 import bet.util as util
 import bet.sampling.basicSampling as bsam
 from bet.Comm import comm, MPI
+import scipy.stats.distributions as dist
 
 #local_path = os.path.join(os.path.dirname(bet.__file__), "/test")
 local_path = ''
@@ -1676,6 +1677,10 @@ class Test_cartesian_sample_set(unittest.TestCase):
 
 
 class Test_sampling_discretization(unittest.TestCase):
+    r"""
+    Test the sampling-based approach.
+    """
+
     def setUp(self):
         self.dim1 = 3
         self.num = 100
@@ -1746,17 +1751,17 @@ class Test_sampling_discretization(unittest.TestCase):
                                       np.arange(n)[np.arange(int(0.2*n), n, 2)])
 
     
-#     def test_solve_problem(self):
-#         """
-#         Test problem setup syntaxes. 
-#         """
-#         disc = self.disc
-#         disc.set_initial()
-#         disc.set_observed() # set_output_probability_set
-#         disc.set_predicted() # should be optional...
-#         disc.updated_pdf()
-#         disc.initial_pdf()
-#         disc.updated_pdf()
+    # def test_solve_problem(self):
+    #     """
+    #     Test problem setup syntaxes. 
+    #     """
+    #     disc = self.disc
+    #     disc.set_initial()  # uniform [0,1]
+    #     disc.set_observed()  # set_output_probability_set
+    #     disc.set_predicted()  # should be optional...
+    #     disc.updated_pdf()
+    #     disc.initial_pdf()
+    #     disc.updated_pdf()
 
     def test_set_observed_no_reference(self):
         """
@@ -1767,9 +1772,120 @@ class Test_sampling_discretization(unittest.TestCase):
             D.set_observed(loc=l) # infer dimension correctly
             D.get_data() 
         
-    def test_set_observed_with_reference(self):
-        
+    def test_set_data(self):
+        """
+        Test straight-forward data-setting. 
+        """
         D = self.disc
-        #D.set_output_probability_set
-        #D.set_data(np.ones(self.dim2)) # pass some actual data
-        #D.set_observed() # this now functions as noise model
+        ref_val = np.ones(self.dim2*2)
+        # set manually
+        D._output_probability_set._reference_value = np.copy(ref_val)
+        nptest.assert_array_equal(D.get_data(), ref_val)
+        # set using function
+        D.set_data(ref_val) 
+        nptest.assert_array_equal(D.get_data(), ref_val)
+        # test perturbation in-place
+        D._output_probability_set._reference_value += 1
+        nptest.assert_array_equal(D.get_data(), ref_val + 1)
+
+    def test_set_data_from_observed(self):
+        """
+        Test using mean/median/bound of observed as data.
+        """
+        D = self.disc
+        D.set_observed()
+        
+        a, b = 1, 2
+        loc, scale = 0, 1
+
+        obs_dist = dist.beta(a=a, b=b, loc=loc, scale=scale)
+        D.set_observed(obs_dist)
+        # take draw from distribution
+        D.set_data_from_observed()
+        assert obs_dist.mean() == D.get_data()
+        D.set_data_from_observed('mean')
+        assert obs_dist.mean() == D.get_data()
+        D.set_data_from_observed('median')
+        assert obs_dist.median() == D.get_data()
+        # interval around mean value using our keywords: min/max
+        D.set_data_from_observed('min')
+        assert obs_dist.interval(0.99)[0] == D.get_data()
+        D.set_data_from_observed('min', alpha=0.15)
+        assert obs_dist.interval(0.15)[0] == D.get_data()
+        D.set_data_from_observed('max')
+        assert obs_dist.interval(0.99)[1] == D.get_data()
+        D.set_data_from_observed('max', alpha=0.25)
+        assert obs_dist.interval(0.25)[1] == D.get_data()
+        # expected value
+        D.set_data_from_observed('expect')
+        assert obs_dist.expect() == D.get_data()
+        D.set_data_from_observed('expect', lb=(scale-loc)/2)
+        assert obs_dist.expect(lb=(scale-loc)/2) == D.get_data()
+
+    def test_set_data_from_reference(self):
+        """
+        Test using reference and observed to perturb
+        """
+        D = self.disc
+        ref_val = np.ones(self.dim2)
+        D._output_sample_set.set_reference_value(ref_val)
+        
+        std = 0.1
+        noise_dist = dist.norm(loc=0, scale=std)
+
+        D.set_noise_model(noise_dist)
+        D.set_data_from_reference()
+        assert np.abs(D.get_data() - ref_val) < std*6
+
+        # should be able to pass scalar values and have normal assumption
+        D.set_noise_model(std*2)  # double error level
+        D.set_data_from_reference()
+        assert np.abs(D.get_data() - ref_val) < std*6
+
+        
+    def test_set_data_from_observed(self):
+        """
+        Test using median of observed as data.
+        """
+        D = self.disc
+
+    def test_set_initial(self):
+        """
+        Test setting initial.
+        """
+        import scipy.stats as sstats
+        D = self.disc
+        D.set_initial()
+        assert isinstance(D.get_initial().dist,
+                          sstats._continuous_distns.uniform_gen)
+
+    def test_set_observed(self):
+        """
+        Test setting initial.
+        """
+        import scipy.stats as sstats
+        D = self.disc
+        D.set_observed(dist.norm(loc=np.arange(self.dim2)))
+        assert isinstance(D.get_observed().dist,
+                          sstats._continuous_distns.norm_gen)
+
+    def test_set_predicted(self):
+        """
+        Test setting initial.
+        """
+        import scipy.stats as sstats
+        from scipy.stats import gaussian_kde as gkde
+        D = self.disc
+        num = 21
+        
+        def mymodel(input_values):
+            return 2*input_values
+        D.set_model(mymodel)
+        D.set_initial(num=num)
+        assert D.check_nums() == num
+        D.set_predicted()
+        assert isinstance(D.get_predicted(), gkde)
+        D.set_predicted(dist.uniform(loc=0,scale=1))
+        assert isinstance(D.get_predicted().dist,
+                          sstats._continuous_distns.uniform_gen)
+
