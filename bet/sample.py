@@ -3059,12 +3059,12 @@ class discretization(object):
         r"""
         Wrapper for `compute_pushforward`.
         """
-        if iteration is None:
-            iteration = self._iteration
         if dist is None:
             return self.compute_pushforward(dist, iteration)
         elif isinstance(dist, scipy.stats._distn_infrastructure.rv_frozen):
             self._output_sample_set.set_distribution(dist, *args, **kwds)
+            if iteration is None:
+                iteration = self._iteration
             self._setup[iteration]['pre'] = self._output_sample_set.get_distribution()
         else:
             return self.compute_pushforward(dist, iteration, *args, **kwds)
@@ -3648,6 +3648,12 @@ class discretization(object):
         else:
             pass  # use lists  and numpy-arrays as-is
         return list(inds)
+
+    def get_output(self):
+        return self.get_output_sample_set()
+
+    def get_input(self):
+        return self.get_input_sample_set()
 
     def set_data_from_reference(self, iteration=None, dist=None):
         # goes and grabs the reference output value for a particular iteration

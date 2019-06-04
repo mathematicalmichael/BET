@@ -1685,8 +1685,10 @@ class Test_sampling_discretization(unittest.TestCase):
         self.dim1 = 3
         self.num = 100
         self.dim2 = 1
-        values1 = np.ones((self.num, self.dim1))
+        values1 = np.random.rand(self.num, self.dim1)
         values2 = np.random.randn(self.num, self.dim2)
+        self.input_values = values1
+        self.output_values = values2
         values3 = np.ones((self.num, self.dim2))
         self.input_set = sample.sample_set(dim=self.dim1)
         self.output_set = sample.sample_set(dim=self.dim2)
@@ -1751,17 +1753,61 @@ class Test_sampling_discretization(unittest.TestCase):
                                       np.arange(n)[np.arange(int(0.2*n), n, 2)])
 
     
-    # def test_solve_problem(self):
-    #     """
-    #     Test problem setup syntaxes. 
-    #     """
-    #     disc = self.disc
-    #     disc.set_initial()  # uniform [0,1]
-    #     disc.set_observed()  # set_output_probability_set
-    #     disc.set_predicted()  # should be optional...
-    #     disc.updated_pdf()
-    #     disc.initial_pdf()
-    #     disc.updated_pdf()
+    def test_empty_problem(self):
+        """
+        Test problem setup syntaxes. 
+        """
+        D = self.disc
+        def mymodel(input_values):
+            return 2*input_values[:,:self.dim2]
+        D.set_model(mymodel)
+        D.set_initial()  # uniform [0,1]
+        # D.set_observed(dist.norm())  # set_output_probability_set [TK - fix]
+        D.get_output().set_reference_value(2*np.ones(self.dim2))  # only for size inference?
+        D.set_observed()  # this should set the data vector.
+        # nptest.assert_array_equal(D.get_data(), 2)
+        D.set_predicted()  # should be optional...
+
+        # evaluate on existing samples 
+        D.updated_pdf()
+        D.initial_pdf()
+        D.observed_pdf()
+        D.predicted_pdf()
+
+        # evaluate at a given set of points
+        D.initial_pdf(self.input_values)
+        D.updated_pdf(self.input_values)
+        D.observed_pdf(self.output_values)
+        D.predicted_pdf(self.output_values)
+
+    def test_set_observed_rv_frozen(self):
+        """
+        Test default behavior of set_observed.
+        """
+        D = self.disc
+        D.set_observed(dist.norm)
+        nptest.assert_array_equal(D.get_data(), 0)
+        D.set_observed(dist.norm(loc=2))
+        nptest.assert_array_equal(D.get_data(), 2)
+
+    def test_solve_problem(self):
+        """
+        Solve inverse problem.
+        """
+        D = self.disc
+        def mymodel(input_values):
+            return 2*input_values
+        D.set_model(mymodel)
+        D.set_initial(dist.uniform(loc=[0]*self.dim1,
+                      scale=[1]*self.dim1))  # uniform [0,1]
+        D.set_observed(dist.uniform(loc=[0.5]*self.dim1,
+                      scale=[1]*self.dim1))  # set_output_probability_set
+        D.set_predicted(dist.uniform(loc=[0]*self.dim1,
+                        scale=[2]*self.dim1))  # should be optional...
+        updated_pdf = D.updated_pdf()
+        pos_vals = D.get_input_values()[updated_pdf>0,:]
+        nptest.assert_array_equal(pos_vals < 0.75, True)
+        nptest.assert_array_equal(pos_vals > 0.25, True)  # greater than
 
     def test_set_observed_no_reference(self):
         """
@@ -1841,7 +1887,6 @@ class Test_sampling_discretization(unittest.TestCase):
         D.set_noise_model(std*2)  # double error level
         D.set_data_from_reference()
         assert np.abs(D.get_data() - ref_val) < std*6
-
         
     def test_set_data_from_observed(self):
         """
