@@ -3004,8 +3004,6 @@ class discretization(object):
         if self._output_sample_set is not None:
             self._output_sample_set.local_to_global()
 
-    def get_initial_distribution(self):
-        return self._input_sample_set._distribution
 
     def likelihood(self, x=None):
         L = self._output_probability_set._distribution

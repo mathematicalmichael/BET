@@ -1858,6 +1858,7 @@ class Test_sampling_discretization(unittest.TestCase):
         D.set_initial()
         assert isinstance(D.get_initial().dist,
                           sstats._continuous_distns.uniform_gen)
+        D.get_initial_distribution()
 
     def test_set_observed(self):
         """
