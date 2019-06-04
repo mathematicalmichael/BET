@@ -3690,7 +3690,7 @@ class discretization(object):
         
         if np.max(np.abs(dist.mean())) == 0:
             noise = self._output_probability_set.rvs(dist=dist)
-            Q_ref += noise
+            Q_ref = Q_ref + noise
         else:
             logging.warn("Non-homogeneous noise. Using random draw for data.")
             Q_ref = self._output_probability_set.rvs(dist=dist)

@@ -1682,9 +1682,9 @@ class Test_sampling_discretization(unittest.TestCase):
     """
 
     def setUp(self):
-        self.dim1 = 3
+        self.dim1 = 2
         self.num = 100
-        self.dim2 = 1
+        self.dim2 = 2
         values1 = np.random.rand(self.num, self.dim1)
         values2 = np.random.randn(self.num, self.dim2)
         self.input_values = values1
@@ -1881,12 +1881,12 @@ class Test_sampling_discretization(unittest.TestCase):
 
         D.set_noise_model(noise_dist)
         D.set_data_from_reference()
-        assert np.abs(D.get_data() - ref_val) < std*6
+        assert np.max(np.abs(D.get_data() - ref_val)) < std*6
 
         # should be able to pass scalar values and have normal assumption
         D.set_noise_model(std*2)  # double error level
         D.set_data_from_reference()
-        assert np.abs(D.get_data() - ref_val) < std*6
+        assert np.max(np.abs(D.get_data() - ref_val)) < std*12
         
     def test_set_data_from_observed(self):
         """
