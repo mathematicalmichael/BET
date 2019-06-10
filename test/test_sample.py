@@ -1823,7 +1823,7 @@ class Test_sampling_discretization(unittest.TestCase):
         nptest.assert_array_equal(pos_vals > 0.25, True)  # greater than
         # check validity of solution against (simple-function) analytical one
         assert np.max(updated_pdf[updated_pdf>0] -2**self.dim1) < 1E-14
-        D.mud()
+        D.mud_index()
 
     def test_set_observed_no_reference(self):
         """
