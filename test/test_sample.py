@@ -1765,6 +1765,7 @@ class Test_sampling_discretization(unittest.TestCase):
         # D.set_observed(dist.norm())  # set_output_probability_set [TK - fix]
         D.get_output().set_reference_value(2*np.ones(self.dim2))  # only for size inference?
         D.set_observed()  # this should set the data vector.
+        D.set_data_from_observed()
         # nptest.assert_array_equal(D.get_data(), 2)
         D.set_predicted()  # should be optional...
 
@@ -1780,14 +1781,22 @@ class Test_sampling_discretization(unittest.TestCase):
         D.observed_pdf(self.output_values)
         D.predicted_pdf(self.output_values)
 
-    def test_set_observed_rv_frozen(self):
+    def test_set_observed_rv_continuous(self):
         """
         Test default behavior of set_observed.
         """
         D = self.disc
         D.set_observed(dist.norm)
+        D.set_data_from_observed()
         nptest.assert_array_equal(D.get_data(), 0)
-        D.set_observed(dist.norm(loc=2))
+
+    def test_set_observed_rv_frozen(self):
+        """
+        Test default behavior of set_observed with frozen dist.
+        """
+        D = self.disc
+        D.set_observed(dist.norm(loc=2*np.ones(self.dim2)))
+        D.set_data_from_observed()
         nptest.assert_array_equal(D.get_data(), 2)
 
     def test_solve_problem(self):
@@ -1822,11 +1831,12 @@ class Test_sampling_discretization(unittest.TestCase):
         """
         Test straight-forward data-setting. 
         """
-        D = self.disc
-        ref_val = np.ones(self.dim2*2)
+        D = self.disc.copy()
+        ref_val = np.ones(self.dim2)
         # set manually
         D._output_probability_set._reference_value = np.copy(ref_val)
         nptest.assert_array_equal(D.get_data(), ref_val)
+        D = self.disc.copy()
         # set using function
         D.set_data(ref_val) 
         nptest.assert_array_equal(D.get_data(), ref_val)
@@ -1842,31 +1852,34 @@ class Test_sampling_discretization(unittest.TestCase):
         D.set_observed()
         
         a, b = 1, 2
-        loc, scale = 0, 1
+        loc, scale = np.zeros(self.dim2), np.ones(self.dim2)
 
         obs_dist = dist.beta(a=a, b=b, loc=loc, scale=scale)
         D.set_observed(obs_dist)
         # take draw from distribution
         D.set_data_from_observed()
-        assert obs_dist.mean() == D.get_data()
+        nptest.assert_array_equal(obs_dist.mean(),
+                                  D.get_data() )
         D.set_data_from_observed('mean')
-        assert obs_dist.mean() == D.get_data()
+        nptest.assert_array_equal(obs_dist.mean(),
+                                  D.get_data() )
         D.set_data_from_observed('median')
-        assert obs_dist.median() == D.get_data()
+        nptest.assert_array_equal(obs_dist.median(),
+                                  D.get_data() )
         # interval around mean value using our keywords: min/max
         D.set_data_from_observed('min')
-        assert obs_dist.interval(0.99)[0] == D.get_data()
+        nptest.assert_array_equal(obs_dist.interval(0.99)[0],
+                                  D.get_data() )
         D.set_data_from_observed('min', alpha=0.15)
-        assert obs_dist.interval(0.15)[0] == D.get_data()
+        nptest.assert_array_equal(obs_dist.interval(0.15)[0],
+                                  D.get_data() )
         D.set_data_from_observed('max')
-        assert obs_dist.interval(0.99)[1] == D.get_data()
+        nptest.assert_array_equal(obs_dist.interval(0.99)[1],
+                                  D.get_data() )
         D.set_data_from_observed('max', alpha=0.25)
-        assert obs_dist.interval(0.25)[1] == D.get_data()
-        # expected value
-        D.set_data_from_observed('expect')
-        assert obs_dist.expect() == D.get_data()
-        D.set_data_from_observed('expect', lb=(scale-loc)/2)
-        assert obs_dist.expect(lb=(scale-loc)/2) == D.get_data()
+        nptest.assert_array_equal(obs_dist.interval(0.25)[1],
+                                  D.get_data() )
+        
 
     def test_set_data_from_reference(self):
         """
@@ -1888,11 +1901,6 @@ class Test_sampling_discretization(unittest.TestCase):
         D.set_data_from_reference()
         assert np.max(np.abs(D.get_data() - ref_val)) < std*12
         
-    def test_set_data_from_observed(self):
-        """
-        Test using median of observed as data.
-        """
-        D = self.disc
 
     def test_set_initial(self):
         """
@@ -1907,7 +1915,7 @@ class Test_sampling_discretization(unittest.TestCase):
 
     def test_set_observed(self):
         """
-        Test setting initial.
+        Test setting observed.
         """
         import scipy.stats as sstats
         D = self.disc
@@ -1917,7 +1925,7 @@ class Test_sampling_discretization(unittest.TestCase):
 
     def test_set_predicted(self):
         """
-        Test setting initial.
+        Test setting predicted.
         """
         import scipy.stats as sstats
         from scipy.stats import gaussian_kde as gkde
@@ -1934,4 +1942,14 @@ class Test_sampling_discretization(unittest.TestCase):
         D.set_predicted(dist.uniform(loc=0,scale=1))
         assert isinstance(D.get_predicted().dist,
                           sstats._continuous_distns.uniform_gen)
+
+    def test_set_std(self):
+        """
+        Test set/get for st. deviation parameter.
+        """
+        D = self.disc
+        D.set_data(np.ones(self.dim2))
+        D.set_std(0.1)
+        nptest.assert_array_equal(D.get_std(), 0.1*np.ones(self.dim2))
+
 

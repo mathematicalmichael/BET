@@ -3133,47 +3133,24 @@ class discretization(object):
             from scipy.stats.distributions import norm
             dist = norm
             logging.info("Assuming normal distribution of noise.")
-            try:  # is user providing information about error?
-                self._setup[iteration]['std'] = kwds['scale']
-            except KeyError:
-                pass
-            # if empty reference, set it using normal assumption.
-            if self._output_probability_set._reference_value is None:
-                self._output_probability_set._reference_value = np.zeros(dim)
-                self.set_data_from_reference(dist=norm(*args, **kwds))
+        try:  # is user providing information about error?
+            scale = kwds.pop('scale')
+            # enforce correct size of distribution.
+            if isinstance(scale, float) or isinstance(scale, int):
+                scale = scale*np.ones(dim)
+        except KeyError:
+            scale = np.ones(dim)
 
-        if self._output_probability_set._reference_value is not None:
-            try:  # overwrite if new location is passed.
-                ref_val = dist.mean()
-                if isinstance(ref_val, int) or isinstance(ref_val, float):
-                    ref_val = np.array([ref_val]*dim)
-                elif isinstance(ref_val, list) or isinstance(ref_val, tuple):
-                    ref_val = np.array(ref_val)
-                self._output_probability_set._reference_value = ref_val
-            except KeyError:  # if no, location, get it.
-                ref_val = self.get_data(iteration)  # center it
-                kwds['loc'] = ref_val
-        else:  # no previous reference value
-            logging.warn("Using observed distribution mean as data.")
-            ref_val = dist.mean()
-            if isinstance(ref_val, int) or isinstance(ref_val, float):
-                ref_val = np.array([ref_val]*dim)
-            elif isinstance(ref_val, list) or isinstance(ref_val, tuple):
-                ref_val = np.array(ref_val)
-            self._output_probability_set._reference_value = ref_val
-        
-        self._output_probability_set.set_distribution(dist, *args, **kwds)
+        self._output_probability_set._dim = dim  # write dimension info
+        self._output_probability_set.set_distribution(dist, scale=scale, *args, **kwds)
         # Store distribution for iterated re-use
         obs_dist = self._output_probability_set._distribution
         self._setup[iteration]['obs'] = obs_dist
 
         # Store information about standard deviation for later use.
         logging.info("Setting standard deviation information for output data.")
-        self._setup[iteration]['std'] = obs_dist.std()
-        self._output_probability_set._dim = dim  # write dimension info
+        self.set_std(obs_dist.std(), iteration=iteration)
 
-        # update the reference value.
-        self._output_probability_set._reference_value = ref_val
 
     def compute_pushforward(self, dist=None, iteration=None, *args, **kwds):
         # avoid accept/reject if possible
@@ -3492,6 +3469,7 @@ class discretization(object):
 
         if self._output_probability_set is None:
             inds = np.arange(self._output_sample_set._dim)
+            logging.warn("Returning reference value.")
             return self._output_sample_set._reference_value[inds]
         elif self._output_probability_set._reference_value is None:
             inds = np.arange(self._output_sample_set._dim)
@@ -3528,7 +3506,11 @@ class discretization(object):
             inds = np.arange(len(data))
         else:
             inds = self.get_data_indices(iteration)
-        self._output_probability_set._reference_value[inds] = np.copy(data)
+
+        if self._output_probability_set._reference_value is None:
+            self._output_probability_set._reference_value = np.copy(data)
+        else:
+            self._output_probability_set._reference_value[inds] = np.copy(data)
 
         if std is None:
             if self._setup[self._iteration]['std'] is None:
@@ -3564,7 +3546,15 @@ class discretization(object):
         """
         if iteration is None:
             iteration = self._iteration
-        data_len = len(self._output_probability_set._reference_value)
+        if self._output_probability_set._reference_value is None:
+            if self._output_sample_set._reference_value is None:
+                logging.info("Using length of output samples because reference empty.")
+                data_len = self._output_sample_set._dim
+            else:
+                logging.info("Using length of output reference because data empty.")
+                data_len = len(self._output_sample_set._reference_value)
+        else:
+            data_len = len(self._output_probability_set._reference_value)
         return self.format_indices(data_len, self._setup[iteration]['ind'])
 
     def get_output_indices(self, iteration=None):
@@ -3654,6 +3644,36 @@ class discretization(object):
 
     def get_input(self):
         return self.get_input_sample_set()
+    
+    def set_data_from_observed(self, obs='mean',
+                                     alpha=0.99,
+                                     iteration=None):
+        r"""
+        Perform a draw from the observed distribution.
+        
+        :param string obs: Type of draw to take. Choose from
+                 'mean' (default), 'median',
+                 'min'/'max' (pass `alpha`), or
+        
+        :param float alpha: If using obs='min'/'max',
+                this represents the confidence level.
+                Default value is 0.99.
+
+        """
+        if iteration is None:
+            iteration = self._iteration
+        obs_dist = self.get_observed_distribution(iteration)
+        if obs == 'mean':
+            data = obs_dist.mean()
+        elif obs == 'median':
+            data = obs_dist.median()
+        elif obs == 'min':
+            data = obs_dist.interval(alpha)[0]
+        elif obs == 'max':
+            data = obs_dist.interval(alpha)[1]
+        std = obs_dist.std()
+        
+        self.set_data(data, std=std, iteration=iteration)
 
     def set_data_from_reference(self, iteration=None, dist=None):
         # goes and grabs the reference output value for a particular iteration
