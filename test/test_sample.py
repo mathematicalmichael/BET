@@ -1759,11 +1759,12 @@ class Test_sampling_discretization(unittest.TestCase):
         """
         D = self.disc
         def mymodel(input_values):
-            return 2*input_values[:,:self.dim2]
+            inds = np.arange(self.dim2)%self.dim1 # repeated data
+            return 2*input_values[:,inds]
         D.set_model(mymodel)
         D.set_initial()  # uniform [0,1]
         # D.set_observed(dist.norm())  # set_output_probability_set [TK - fix]
-        D.get_output().set_reference_value(2*np.ones(self.dim2))  # only for size inference?
+        # D.get_output().set_reference_value(2*np.ones(self.dim2))  # only for size inference?
         D.set_observed()  # this should set the data vector.
         D.set_data_from_observed()
         # nptest.assert_array_equal(D.get_data(), 2)
@@ -1822,7 +1823,8 @@ class Test_sampling_discretization(unittest.TestCase):
         nptest.assert_array_equal(pos_vals > 0.25, True)  # greater than
         # check validity of solution against (simple-function) analytical one
         assert np.max(updated_pdf[updated_pdf>0] -2**self.dim1) < 1E-14
-        
+        D.mud()
+
     def test_set_observed_no_reference(self):
         """
         Test how observed behaves without reference output.
@@ -1895,12 +1897,13 @@ class Test_sampling_discretization(unittest.TestCase):
         D = self.disc
         ref_val = np.ones(self.dim2)
         D._output_sample_set.set_reference_value(ref_val)
-        
+
         std = 0.1
         noise_dist = dist.norm(loc=0, scale=std)
 
         D.set_noise_model(noise_dist)
         D.set_data_from_reference()
+
         assert np.max(np.abs(D.get_data() - ref_val)) < std*6
 
         # should be able to pass scalar values and have normal assumption
@@ -1980,3 +1983,73 @@ class Test_sampling_one_dim(Test_sampling_discretization):
                                           output_sample_set=self.output_set,
                                           output_probability_set=
                                           self.output_probability_set)
+        
+
+class Test_sampling_repeated(Test_sampling_discretization):
+    def setUp(self):
+        self.dim1 = 1
+        self.num = 250
+        self.dim2 = 10
+        values1 = np.random.rand(self.num, self.dim1)
+        values2 = np.random.randn(self.num, self.dim2)
+        self.input_values = values1
+        self.output_values = values2
+        values3 = np.ones((self.num, self.dim2))
+        self.input_set = sample.sample_set(dim=self.dim1)
+        self.output_set = sample.sample_set(dim=self.dim2)
+        self.output_probability_set = sample.sample_set(dim=self.dim2)
+        self.input_set.set_values(values1)
+        self.output_set.set_values(values2)
+        self.output_probability_set.set_values(values3)
+        self.disc = sample.discretization(input_sample_set=self.input_set,
+                                          output_sample_set=self.output_set,
+                                          output_probability_set=
+                                          self.output_probability_set)
+        self.disc.set_data_driven()
+        self.std = 0.1
+        self.disc.set_data(np.ones(self.dim2), std=self.std)
+
+    def test_solve_problem(self):
+        """
+        Solve inverse problem (input dim ≠ output dim)
+        """
+        D = self.disc
+        def mymodel(input_values):
+            inds = np.arange(self.dim2)%self.dim1 # repeated data
+            return 2*input_values[:,inds]
+
+        D.set_model(mymodel)
+        D.set_initial(dist.uniform(loc=[0]*self.dim1,
+                      scale=[1]*self.dim1))  # uniform [0,1]
+
+        updated_pdf = D.updated_pdf()
+
+        # check that correct samples received positive probability
+        pos_vals = D.get_input_values()[updated_pdf>0,:]
+        nptest.assert_array_equal(pos_vals < 0.5 + self.std*3, True)
+        nptest.assert_array_equal(pos_vals > 0.5 - self.std*3, True)  # greater than
+        # check validity of solution against
+        assert np.abs(D.mud_point() - 0.5) < 1E-2
+
+    def test_set_predicted(self):
+        """
+        Test setting predicted.
+        """
+        import scipy.stats as sstats
+        from scipy.stats import gaussian_kde as gkde
+        D = self.disc
+        num = 21
+
+        def mymodel(input_values):
+            inds = np.arange(self.dim2)%self.dim1 # repeated data
+            return 2*input_values[:,inds]
+        D.set_model(mymodel)
+        D.set_initial(num=num)
+        assert D.check_nums() == num
+        D.set_predicted()
+        assert isinstance(D.get_predicted(), gkde)
+        D.set_predicted(dist.uniform(loc=0,scale=1))
+        assert isinstance(D.get_predicted().dist,
+                          sstats._continuous_distns.uniform_gen)
+
+            

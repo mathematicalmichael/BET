@@ -3336,12 +3336,27 @@ class discretization(object):
             assert len(den) == self.check_nums()
         return den
 
-    def mud(self, x=None, iteration=None):
+    def mud_index(self, x=None, iteration=None):
+        """
+        Return index of maximum updated density value.
+        """
         den = self.updated_pdf(x, iteration)
-        a = np.argmax(den)
-        in_val = self._input_sample_set._values[a, :]
-        out_val = self._output_sample_set._values[a, :]
-        return (in_val, out_val, a)
+        mud_idx = np.argmax(den)
+        return mud_idx
+
+    def mud_point(self, x=None, iteration=None):
+        """
+        Return maximum updated density value.
+        """
+        mud_idx = self.mud_index(x, iteration)
+        return self._input_sample_set._values[mud_idx, :]
+
+    def mud_value(self, x=None, iteration=None):
+        """
+        Return output value corresponding to maximum updated density value.
+        """
+        mud_idx = self.mud_index(x, iteration)
+        return self._output_sample_set._values[mud_idx, :]
 
     def set_noise_model(self, dist=None, iteration=None, *args, **kwds):
         """
