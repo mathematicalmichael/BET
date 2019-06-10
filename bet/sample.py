@@ -3249,13 +3249,12 @@ class discretization(object):
                 obs = self._setup[i]['obs']  # load observed dist
 
             data = self.format_output_values(x=x, iteration=i)
-            temp_eval = np.log(self._output_probability_set.pdf(x=data,
-                                                                dist=obs))
+            temp_eval = self._output_probability_set.pdf(x=data, dist=obs)
             if i == 0:
                 out = temp_eval
             else:
-                out += temp_eval
-        return np.exp(out)
+                out *= temp_eval
+        return out
 
     def ratio_pdf(self, x=None):
         r"""
@@ -3518,7 +3517,7 @@ class discretization(object):
                     logging.warn(
                         "No way to infer std. Will use sample variance.")
                     if len(self.get_data_indices(iteration)) == 1:
-                        raise AttributeError(
+                        logging.warn(
                             "Cannot take sample variance of singleton.")
                 else:
                     logging.warn(

@@ -1801,7 +1801,7 @@ class Test_sampling_discretization(unittest.TestCase):
 
     def test_solve_problem(self):
         """
-        Solve inverse problem.
+        Solve inverse problem (input dim = output dim)
         """
         D = self.disc
         def mymodel(input_values):
@@ -1813,11 +1813,16 @@ class Test_sampling_discretization(unittest.TestCase):
                       scale=[1]*self.dim1))  # set_output_probability_set
         D.set_predicted(dist.uniform(loc=[0]*self.dim1,
                         scale=[2]*self.dim1))  # should be optional...
+
         updated_pdf = D.updated_pdf()
+
+        # check that correct samples received positive probability
         pos_vals = D.get_input_values()[updated_pdf>0,:]
         nptest.assert_array_equal(pos_vals < 0.75, True)
         nptest.assert_array_equal(pos_vals > 0.25, True)  # greater than
-
+        # check validity of solution against (simple-function) analytical one
+        assert np.max(updated_pdf[updated_pdf>0] -2**self.dim1) < 1E-14
+        
     def test_set_observed_no_reference(self):
         """
         Test how observed behaves without reference output.
@@ -1832,14 +1837,16 @@ class Test_sampling_discretization(unittest.TestCase):
         Test straight-forward data-setting. 
         """
         D = self.disc.copy()
-        ref_val = np.ones(self.dim2)
+        ref_val = 21*np.ones(self.dim2)
         # set manually
         D._output_probability_set._reference_value = np.copy(ref_val)
         nptest.assert_array_equal(D.get_data(), ref_val)
         D = self.disc.copy()
         # set using function
-        D.set_data(ref_val) 
+        D.set_data(ref_val)
         nptest.assert_array_equal(D.get_data(), ref_val)
+        D.set_observed()
+        nptest.assert_array_equal(D.get_std(), np.ones(self.dim2))
         # test perturbation in-place
         D._output_probability_set._reference_value += 1
         nptest.assert_array_equal(D.get_data(), ref_val + 1)
@@ -1850,7 +1857,7 @@ class Test_sampling_discretization(unittest.TestCase):
         """
         D = self.disc
         D.set_observed()
-        
+
         a, b = 1, 2
         loc, scale = np.zeros(self.dim2), np.ones(self.dim2)
 
@@ -1879,7 +1886,7 @@ class Test_sampling_discretization(unittest.TestCase):
         D.set_data_from_observed('max', alpha=0.25)
         nptest.assert_array_equal(obs_dist.interval(0.25)[1],
                                   D.get_data() )
-        
+
 
     def test_set_data_from_reference(self):
         """
@@ -1945,7 +1952,7 @@ class Test_sampling_discretization(unittest.TestCase):
 
     def test_set_std(self):
         """
-        Test set/get for st. deviation parameter.
+        Test set/get for standard deviation parameter.
         """
         D = self.disc
         D.set_data(np.ones(self.dim2))
@@ -1953,3 +1960,23 @@ class Test_sampling_discretization(unittest.TestCase):
         nptest.assert_array_equal(D.get_std(), 0.1*np.ones(self.dim2))
 
 
+class Test_sampling_one_dim(Test_sampling_discretization):
+    def setUp(self):
+        self.dim1 = 1
+        self.num = 100
+        self.dim2 = 1
+        values1 = np.random.rand(self.num, self.dim1)
+        values2 = np.random.randn(self.num, self.dim2)
+        self.input_values = values1
+        self.output_values = values2
+        values3 = np.ones((self.num, self.dim2))
+        self.input_set = sample.sample_set(dim=self.dim1)
+        self.output_set = sample.sample_set(dim=self.dim2)
+        self.output_probability_set = sample.sample_set(dim=self.dim2)
+        self.input_set.set_values(values1)
+        self.output_set.set_values(values2)
+        self.output_probability_set.set_values(values3)
+        self.disc = sample.discretization(input_sample_set=self.input_set,
+                                          output_sample_set=self.output_set,
+                                          output_probability_set=
+                                          self.output_probability_set)
