@@ -3007,6 +3007,7 @@ class discretization(object):
 
     def likelihood(self, x=None):
         L = self._output_probability_set._distribution
+        flip = False
         if self._setup[self._iteration]['col']:
             flip = True
             self._setup[self._iteration]['col'] = False
@@ -3019,14 +3020,23 @@ class discretization(object):
         # our pdf function already returns products.
         return self._output_probability_set.pdf(x=x, dist=L)
 
-    def set_likelihood(self):
+    def set_likelihood(self, dist=None):
+        """
+        TO DO: set this up properly
+        """
         flip = False
         if self._setup[self._iteration]['col']:
             flip = True
             self._setup[self._iteration]['col'] = False
-        obs = self.get_observed_distribution()
+        if dist is None:
+            obs = self.get_observed_distribution()
+        else:
+            obs = dist
         std = self.get_std()
         data = self.get_data()
+        if data is None:
+            logging.warn("Missing data. Using mean of observed.")
+            data = obs.mean()
         if flip:
             self._setup[self._iteration]['col'] = True
         self._output_probability_set._dim = len(data)
@@ -3358,6 +3368,64 @@ class discretization(object):
         mud_idx = self.mud_index(x, iteration)
         return self._output_sample_set._values[mud_idx, :]
 
+    def posterior_pdf(self, x=None, iteration=None):
+        r"""
+        Evaluate the updated pdf on a provided set of points.
+
+        :param x: points for evaluation of probability density function 
+        :type x: :class:`numpy.ndarray` of shape ``(*, dim)``
+
+        """
+        if iteration is None:
+            iteration = self._iteration
+
+        if x is None:
+            x = self._input_sample_set._values
+            y = self._output_sample_set._values
+        else:
+            num = x.shape[0]
+            y = np.zeros((x.shape[0], 1))  # temporary vector of correct shape
+
+            for iteration in self._setup.keys():  # map through every model
+                inds = self.get_output_indices(iteration)
+                dim = len(inds)
+                unique = len(np.unique(inds))
+                model = self._setup[iteration]['model']
+                # ensure model output size
+                if model is not None:
+                    z = model(x).reshape(-1, unique)[:, inds]
+                    y = np.concatenate((y, z), axis=1)
+
+            y = y[:, 1:]  # remove zeros
+        den = self.initial_pdf(x)*self.likelihood(y)
+        if x is not None:
+            assert len(den) == x.shape[0]
+        else:
+            assert len(den) == self.check_nums()
+        return den
+
+    def map_index(self, x=None, iteration=None):
+        """
+        Return index of maximum aposteriori point.
+        """
+        den = self.posterior_pdf(x, iteration)
+        map_idx = np.argmax(den)
+        return map_idx
+
+    def map_point(self, x=None, iteration=None):
+        """
+        Return maximum aposteriori point.
+        """
+        map_idx = self.map_index(x, iteration)
+        return self._input_sample_set._values[map_idx, :]
+
+    def map_value(self, x=None, iteration=None):
+        """
+        Return output value corresponding to maximum aposteriori point.
+        """
+        map_idx = self.map_index(x, iteration)
+        return self._output_sample_set._values[map_idx, :]
+
     def set_noise_model(self, dist=None, iteration=None, *args, **kwds):
         """
         dist can be a number, in which case dimension is inferred
@@ -3491,10 +3559,11 @@ class discretization(object):
                 return self._output_sample_set._reference_value[inds]
             else:
                 msg = "Output reference is None."
-                msg += "Will use median of observed as reference data!"
+                msg += "Will use mean of observed as reference data!"
                 logging.warn(msg)
                 # Return zeros as placeholder.
-                return np.array([0 for _ in range(self._output_sample_set._dim)])
+                self.set_data_from_observed(iteration=iteration)
+
         else:  # (noisy) data is not None
             inds = self.get_data_indices(iteration)
             return self._output_probability_set._reference_value[inds]
@@ -3578,7 +3647,13 @@ class discretization(object):
         """
         if iteration is None:
             iteration = self._iteration
-        data_len = len(self.get_data(iteration))
+        if self._output_probability_set is not None:
+            if self._output_probability_set._reference_value is not None:
+                data_len = len(self.get_data(iteration))
+            else:
+                data_len = self._output_probability_set._dim
+        else:
+            data_len = self._output_sample_set._dim
         inds = self.format_indices(data_len, self._setup[iteration]['ind'])
         rep = self._setup[iteration]['rep']
         if rep:  # handle repeated observations
@@ -3789,10 +3864,8 @@ class discretization(object):
             inds = self.get_data_indices(iteration)
             std = np.ones(len(inds))*std
         elif isinstance(std, list) or isinstance(std, tuple):
-            if len(std) == len(self.get_data(iteration)):
-                pass
-            elif len(std) == self._output_sample_set._dim:
-                std = std[self.get_output_indices(iteration)]
+            if len(std) == self._output_sample_set._dim:
+                std = np.array(std)[self.get_output_indices(iteration)]
 
         return list(std)
 

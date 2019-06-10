@@ -1765,7 +1765,7 @@ class Test_sampling_discretization(unittest.TestCase):
         D.set_initial()  # uniform [0,1]
         # D.set_observed(dist.norm())  # set_output_probability_set [TK - fix]
         # D.get_output().set_reference_value(2*np.ones(self.dim2))  # only for size inference?
-        D.set_observed()  # this should set the data vector.
+        D.set_observed()
         D.set_data_from_observed()
         # nptest.assert_array_equal(D.get_data(), 2)
         D.set_predicted()  # should be optional...
@@ -1806,21 +1806,21 @@ class Test_sampling_discretization(unittest.TestCase):
         """
         D = self.disc
         def mymodel(input_values):
-            return 2*input_values
+            return 2*input_values[:,:self.dim2]
         D.set_model(mymodel)
         D.set_initial(dist.uniform(loc=[0]*self.dim1,
                       scale=[1]*self.dim1))  # uniform [0,1]
-        D.set_observed(dist.uniform(loc=[0.5]*self.dim1,
-                      scale=[1]*self.dim1))  # set_output_probability_set
-        D.set_predicted(dist.uniform(loc=[0]*self.dim1,
-                        scale=[2]*self.dim1))  # should be optional...
+        D.set_observed(dist.uniform(loc=[0.5]*self.dim2,
+                      scale=[1]*self.dim2))  # set_output_probability_set
+        D.set_predicted(dist.uniform(loc=[0]*self.dim2,
+                        scale=[2]*self.dim2))  
 
         updated_pdf = D.updated_pdf()
 
         # check that correct samples received positive probability
         pos_vals = D.get_input_values()[updated_pdf>0,:]
-        nptest.assert_array_equal(pos_vals < 0.75, True)
-        nptest.assert_array_equal(pos_vals > 0.25, True)  # greater than
+        nptest.assert_array_equal(pos_vals[:,:self.dim2] < 0.75, True)
+        nptest.assert_array_equal(pos_vals[:,:self.dim2] > 0.25, True)  # greater than
         # check validity of solution against (simple-function) analytical one
         assert np.max(updated_pdf[updated_pdf>0] -2**self.dim1) < 1E-14
         D.mud_index()
@@ -1962,6 +1962,25 @@ class Test_sampling_discretization(unittest.TestCase):
         D.set_std(0.1)
         nptest.assert_array_equal(D.get_std(), 0.1*np.ones(self.dim2))
 
+    def test_likelihood(self):
+        """
+        Test likelihood function
+        """
+        D = self.disc
+        def mymodel(input_values):
+            return 2*input_values[:,:self.dim2]
+        D.set_model(mymodel)
+        D.set_initial(dist.uniform(loc=[0]*self.dim1,
+                      scale=[1]*self.dim1))  # uniform [0,1]
+        D.set_observed(dist.norm(loc=[0.5]*self.dim2,
+                      scale=[0.1]*self.dim2))  # set_output_probability_set
+        D.set_predicted(dist.uniform(loc=[0]*self.dim2, 
+                      scale=[2]*self.dim2))
+        # D.set_data([0.5])
+        mud_point = D.mud_point()
+        D.set_likelihood()
+        map_point = D.map_point()
+        nptest.assert_array_equal(mud_point, map_point)
 
 class Test_sampling_one_dim(Test_sampling_discretization):
     def setUp(self):
@@ -2052,4 +2071,24 @@ class Test_sampling_repeated(Test_sampling_discretization):
         assert isinstance(D.get_predicted().dist,
                           sstats._continuous_distns.uniform_gen)
 
+    def test_likelihood(self):
+        """
+        Test likelihood function
+        """
+        D = self.disc
+        def mymodel(input_values):
+            inds = np.arange(self.dim2)%self.dim1 # repeated data
+            return 3*input_values[:,inds]
+        D.set_model(mymodel)
+        D.set_initial(dist.norm(loc=[0]*self.dim1,
+                      scale=[1]*self.dim1))  # uniform [0,1]
+
+        D.set_data([0.5]*self.dim2 + self.std*np.random.randn(self.dim2))
+        D.set_predicted()
+        
+        mud_point = D.mud_point()
+        D.set_observed(scale=[self.std]*self.dim2)  # set_output_probability_set
+        D.set_likelihood()
+        map_point = D.map_point()
+        nptest.assert_array_equal(mud_point, map_point)
             
