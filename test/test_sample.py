@@ -1682,7 +1682,7 @@ class Test_sampling_discretization(unittest.TestCase):
     """
 
     def setUp(self):
-        self.dim1 = 2
+        self.dim1 = 3
         self.num = 100
         self.dim2 = 2
         values1 = np.random.rand(self.num, self.dim1)
