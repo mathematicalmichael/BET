@@ -731,6 +731,7 @@ class sample_set_base(object):
         self._values = util.fix_dimensions_data(values, self._dim)
         if self._values.shape[1] != self._dim:
             raise dim_not_matching("dimension of values incorrect")
+        self._values_local = None
 
     def get_values(self):
         """
@@ -1215,12 +1216,15 @@ class sample_set_base(object):
         """
         return self._distribution
 
-    def rvs(self, num=1, dist=None):
+    def rvs(self, num=1, dist=None, *args, **kwds):
         """
         Returns correctly-shaped random variates.
         """
         if dist is None:
             dist = self._distribution
+        # instantiate class if need be.
+        if isinstance(dist, scipy.stats.distributions.rv_continuous):
+            dist = dist(*args, **kwds)
         if isinstance(dist, scipy.stats.gaussian_kde):
             return dist.resample(num).T
         else:
@@ -1232,7 +1236,8 @@ class sample_set_base(object):
             except ValueError:
                 return dist.rvs(size=(num, 1))
 
-    def generate_samples(self, num_samples=None, globalize=True, dist=None):
+    def generate_samples(self, num_samples=None, globalize=True,
+                         dist=None, *args, **kwds):
         """
         Generate i.i.d samples according to distribution
         """
@@ -1241,12 +1246,21 @@ class sample_set_base(object):
         # define local number of samples
         num_samples_local = int((num_samples/comm.size) +
                                 (comm.rank < num_samples % comm.size))
-        self.set_values_local(self.rvs(num_samples_local, dist))
+        self.set_values_local(self.rvs(num_samples_local,
+                                       dist, *args, **kwds))
+        self.update_bounds_local()
+        self._probabilities_local = None
+        self._volumes_local = None
+        self._jacobians_local = None
         comm.barrier()
+        
         if globalize:
             self.local_to_global()
         else:
             self._values = None
+        self._volumes = None
+        self._jacobians = None
+        self._probabilities = None
 
     def pdf(self, x=None, dist=None):
         r"""
@@ -1316,18 +1330,15 @@ class sample_set_base(object):
         assert len(cum) == x.shape[0]
         return cum.ravel()  # always return flattened
 
-    def estimate_probability_mc(self, globalize=True):
+    def estimate_probabilities_mc(self, globalize=True):
         """
-        Give all cells the same probability fraction based on the Monte Carlo
-        assumption.
+        Give all cells the same probability fraction
+        based on the Monte Carlo assumption.
         """
         num = self.check_num()
+        self._probabilities = 1.0/float(num)*np.ones((num,))
         if globalize:
-            self._probabilities = 1.0/float(num)*np.ones((num,))
             self.global_to_local()
-        else:
-            num_local = self.check_num_local()
-            self._probabilities_local = 1.0/float(num)*np.ones((num_local,))
 
 
 def save_discretization(save_disc, file_name, discretization_name=None,
@@ -1472,8 +1483,9 @@ def load_discretization_parallel(file_name, discretization_name=None):
         for attrname in discretization.sample_set_names:
             if attrname is not '_input_sample_set' and \
                     attrname is not '_output_sample_set':
-                setattr(loaded_disc, attrname, load_sample_set(file_name,
-                                                               discretization_name+attrname))
+                setattr(loaded_disc, attrname,
+                        load_sample_set(file_name,
+                                        discretization_name+attrname))
 
         # re-localize if necessary
         if file_name.startswith('proc_') and comm.size > 1 \
@@ -2446,7 +2458,8 @@ class discretization(object):
         self._iteration = 0
         #: iteration dictionary to hold information
         self._setup = {0: {'col': False,
-                           'inds': None,
+                           'rep': False,
+                           'ind': None,
                            'qoi': 'SWE',
                            'std': None,
                            'obs': None,
@@ -2991,16 +3004,51 @@ class discretization(object):
         if self._output_sample_set is not None:
             self._output_sample_set.local_to_global()
 
-    def get_initial_distribution(self):
-        return self._input_sample_set._distribution
 
-    def get_noise_distribution(self):
-        return self._output_probability_set._distribution
+    def likelihood(self, x=None):
+        L = self._output_probability_set._distribution
+        if self._setup[self._iteration]['col']:
+            flip = True
+            self._setup[self._iteration]['col'] = False
+        if x is None:
+            x = self.format_output_values()
+        else:
+            x = self.format_output_values(x)
+        if flip:
+            self._setup[self._iteration]['col'] = True
+        # our pdf function already returns products.
+        return self._output_probability_set.pdf(x=x, dist=L)
+
+    def set_likelihood(self):
+        flip = False
+        if self._setup[self._iteration]['col']:
+            flip = True
+            self._setup[self._iteration]['col'] = False
+        obs = self.get_observed_distribution()
+        std = self.get_std()
+        data = self.get_data()
+        if flip:
+            self._setup[self._iteration]['col'] = True
+        self._output_probability_set._dim = len(data)
+        self._output_probability_set.set_distribution(
+            dist=obs.dist, scale=std, loc=data)
+
+    def get_initial_distribution(self):
+        return self._input_sample_set.get_distribution()
+
+    def get_initial(self):
+        return self.get_initial_distribution()
 
     def get_observed_distribution(self, iteration=None):
         if iteration is None:
             iteration = self._iteration
-        return self.setup[iteration]['obs']
+        return self._setup[iteration]['obs']
+
+    def get_observed(self, iteration=None):
+        return self.get_observed_distribution(iteration)
+    
+    def get_predicted(self, iteration=None):
+        return self.get_predicted_distribution(iteration)
 
     def get_predicted_distribution(self, iteration=None):
         if iteration is None:
@@ -3011,18 +3059,52 @@ class discretization(object):
         r"""
         Wrapper for `compute_pushforward`.
         """
-        return self.compute_pushforward(dist, iteration, *args, **kwds)
+        if dist is None:
+            return self.compute_pushforward(dist, iteration)
+        elif isinstance(dist, scipy.stats._distn_infrastructure.rv_frozen):
+            self._output_sample_set.set_distribution(dist, *args, **kwds)
+            if iteration is None:
+                iteration = self._iteration
+            self._setup[iteration]['pre'] = self._output_sample_set.get_distribution()
+        else:
+            return self.compute_pushforward(dist, iteration, *args, **kwds)
 
     def set_predicted(self, dist=None, iteration=None, *args, **kwds):
         r"""
         Wrapper for `compute_pushforward`.
         """
-        return self.compute_pushforward(dist, iteration, *args, **kwds)
+        return self.set_predicted_distribution(dist, iteration, *args, **kwds)
 
-    def set_initial(self, dist=None, *args, **kwds):
+    def set_initial(self, dist=None, num=None, *args, **kwds):
         r"""
         """
         self._input_sample_set.set_distribution(dist, *args, **kwds)
+
+        # regenerate samples
+        if num is None:
+            num = self._input_sample_set.check_num()
+        self._input_sample_set.generate_samples(num)
+        lam_ref = self._input_sample_set._reference_value
+        y = np.zeros((num, 1))  # temporary vector of correct shape
+        v = np.array([])
+        for iteration in self._setup.keys():  # map through every model
+            # clear all push-forwards
+            self._setup[iteration]['pre'] = None
+            model = self._setup[iteration]['model']
+            # ensure model output size
+            if model is not None:
+                z = model(self._input_sample_set._values)
+                if lam_ref is not None:
+                    v = np.concatenate((v, model(lam_ref)))
+                try:
+                    y = np.concatenate((y, z), axis=1)
+                except AxisError:  # 1d support
+                    y = np.concatenate((y, z.reshape(-1, 1)), axis=1)
+            y = y[:, 1:]  # remove zeros
+        self._output_sample_set._dim = y.shape[1]
+        self._output_sample_set.set_values(y)
+        if lam_ref is not None:
+            self._output_sample_set.set_reference_value(v)
 
     def set_observed(self, dist=None, iteration=None, *args, **kwds):
         r"""
@@ -3041,11 +3123,12 @@ class discretization(object):
         if iteration is None:
             iteration = self._iteration
 
-        inds = self.get_indices(iteration)  # returns ALL if None
+        inds = self.get_output_indices(iteration)  # returns ALL if None
         dim = len(inds)
         if self._output_probability_set is None:
             self.set_output_probability_set(sample_set(dim))
         self._output_probability_set._dim = dim  # will need this to match.
+        
         if dist is None:  # normal by default
             from scipy.stats.distributions import norm
             dist = norm
@@ -3057,31 +3140,28 @@ class discretization(object):
             # if empty reference, set it using normal assumption.
             if self._output_probability_set._reference_value is None:
                 self._output_probability_set._reference_value = np.zeros(dim)
-                self.set_data_from_reference(dist=norm(**kwds))
+                self.set_data_from_reference(dist=norm(*args, **kwds))
 
         if self._output_probability_set._reference_value is not None:
             try:  # overwrite if new location is passed.
-                ref_val = kwds['loc']
+                ref_val = dist.mean()
                 if isinstance(ref_val, int) or isinstance(ref_val, float):
                     ref_val = np.array([ref_val]*dim)
                 elif isinstance(ref_val, list) or isinstance(ref_val, tuple):
                     ref_val = np.array(ref_val)
                 self._output_probability_set._reference_value = ref_val
             except KeyError:  # if no, location, get it.
-                ref_val = self.get_data()  # center it
+                ref_val = self.get_data(iteration)  # center it
                 kwds['loc'] = ref_val
         else:  # no previous reference value
-            try:  # was it passed as location?
-                ref_val = kwds['loc']
-                if isinstance(ref_val, int) or isinstance(ref_val, float):
-                    ref_val = np.array([ref_val]*dim)
-                elif isinstance(ref_val, list) or isinstance(ref_val, tuple):
-                    ref_val = np.array(ref_val)
-                self._output_probability_set._reference_value = ref_val
-            except KeyError:  # no location, so infer it from distribution
-                ref_val = dist.median()
-                self._output_probability_set._reference_value = ref_val
-
+            logging.warn("Using observed distribution mean as data.")
+            ref_val = dist.mean()
+            if isinstance(ref_val, int) or isinstance(ref_val, float):
+                ref_val = np.array([ref_val]*dim)
+            elif isinstance(ref_val, list) or isinstance(ref_val, tuple):
+                ref_val = np.array(ref_val)
+            self._output_probability_set._reference_value = ref_val
+        
         self._output_probability_set.set_distribution(dist, *args, **kwds)
         # Store distribution for iterated re-use
         obs_dist = self._output_probability_set._distribution
@@ -3101,7 +3181,7 @@ class discretization(object):
             iteration = self._iteration
 
         self._output_sample_set.local_to_global()
-        data = self.format_output_data(iteration=iteration)
+        data = self.format_output_values(iteration=iteration)
         if data is None:
             raise AttributeError("Missing output values")
 
@@ -3118,13 +3198,14 @@ class discretization(object):
     def iterate(self):
         # what to copy over? what to leave as default?
         self._iteration += 1
+        it = self._iteration
         self.default_setup()
         # copying this should basically function like "copying data"
-        self._setup[self._iteration]['obs'] = self._setup[self._iteration - 1]['obs']
-        self._setup[self._iteration]['pre'] = self._setup[self._iteration - 1]['pre']
-        self._setup[self._iteration]['std'] = self._setup[self._iteration - 1]['std']
-        self._setup[self._iteration]['col'] = self._setup[self._iteration - 1]['col']
-        self._setup[self._iteration]['inds'] = self._setup[self._iteration - 1]['inds']
+        self._setup[self._iteration]['obs'] = self._setup[it-1]['obs']
+        self._setup[self._iteration]['pre'] = self._setup[it-1]['pre']
+        self._setup[self._iteration]['std'] = self._setup[it-1]['std']
+        self._setup[self._iteration]['col'] = self._setup[it-1]['col']
+        self._setup[self._iteration]['ind'] = self._setup[it-1]['ind']
         pass
 
     def set_iteration(self, iteration=0):
@@ -3139,18 +3220,18 @@ class discretization(object):
 
         if self._setup[iteration]['pre'] is None:
             self.compute_pushforward(iteration=iteration)
-            logging.warn("Missing predicted distribution. Computing now.")
+            logging.info("Missing predicted distribution. Computing now.")
 
         data_driven_status = self._setup[iteration]['col']
-        data = self.format_output_data(x=x, iteration=iteration)
-        num, dim = data.shape
-        out = np.zeros(num)
-
         for i in range(0, iteration+1):  # get all previous
             pre = self._setup[i]['pre']  # load predicted dist
-            data = self.format_output_data(x=x, iteration=i)
-            out += np.log(self._output_sample_set.pdf(x=data,
-                                                      dist=pre))
+            data = self.format_output_values(x=x, iteration=i)
+            temp_eval = np.log(self._output_sample_set.pdf(x=data,
+                                                           dist=pre))
+            if i == 0:
+                out = temp_eval
+            else:
+                out += temp_eval
 
         return np.exp(out)
 
@@ -3170,14 +3251,7 @@ class discretization(object):
         if iteration is None:  # if not provided, assume "current"
             iteration = self._iteration
 
-        if self._output_probability_set._distribution is None:
-            self.set_observed_distribution()
-            logging.warn("Missing observed. Setting to default N(0,1).")
-
         data_driven_status = self._setup[iteration]['col']
-        data = self.format_output_data(x=x, iteration=iteration)
-        num, dim = data.shape
-        out = np.zeros(num)
 
         for i in range(0, iteration+1):  # get all previous
             data_driven_status = self._setup[i]['col']
@@ -3194,16 +3268,16 @@ class discretization(object):
                     obs = chi2(df=dim)
                 else:
                     raise ValueError("Could not infer QoI type.")
-                # in case we missed something, let's enforce None in setup
-                if self._setup[i]['obs'] is not None:
-                    self._setup[i]['obs'] = None
             else:  # attempt to set observed based on stored info
                 obs = self._setup[i]['obs']  # load observed dist
 
-            data = self.format_output_data(x=x, iteration=i)
-            out += np.log(self._output_probability_set.pdf(x=data,
-                                                           dist=obs))
-
+            data = self.format_output_values(x=x, iteration=i)
+            temp_eval = np.log(self._output_probability_set.pdf(x=data,
+                                                                dist=obs))
+            if i == 0:
+                out = temp_eval
+            else:
+                out += temp_eval
         return np.exp(out)
 
     def ratio_pdf(self, x=None):
@@ -3239,6 +3313,17 @@ class discretization(object):
         ratio = self.ratio_pdf(x)
         return ratio/max(ratio)
 
+    def get_input_values(self):
+        return self._input_sample_set._values
+
+    def get_output_values(self):
+        return self._output_sample_set._values
+
+    def set_model(self, model, iteration=None):
+        if iteration is None:
+            iteration = self._iteration
+        self._setup[iteration]['model'] = model
+
     def updated_pdf(self, x=None, iteration=None):
         r"""
         Evaluate the updated pdf on a provided set of points.
@@ -3257,22 +3342,16 @@ class discretization(object):
             num = x.shape[0]
             y = np.zeros((x.shape[0], 1))  # temporary vector of correct shape
 
-            last_model = None
-            for model_num in range(iteration+1):  # map through every model
-                inds = self.get_indices(iteration)
+            for iteration in self._setup.keys():  # map through every model
+                inds = self.get_output_indices(iteration)
                 dim = len(inds)
                 unique = len(np.unique(inds))
-                model = self._setup[model_num]['model']
+                model = self._setup[iteration]['model']
                 # ensure model output size
                 if model is not None:
                     z = model(x).reshape(-1, unique)[:, inds]
                     y = np.concatenate((y, z), axis=1)
-                    last_model = model
-                else:  # if no new model, attempt to re-use old one
-                    logging.warn(
-                        "Iteration %i: Re-using model for new samples." % model_num)
-                    z = last_model(x).reshape(-1, unique)[:, inds]
-                    y = np.concatenate((y, z), axis=1)
+
             y = y[:, 1:]  # remove zeros
         den = self.initial_pdf(x)*self.ratio_pdf(y)
         if x is not None:
@@ -3281,53 +3360,49 @@ class discretization(object):
             assert len(den) == self.check_nums()
         return den
 
-    def set_indices(self, inds=None, iteration=None, pushforward=True):
-        r"""
-        Choose the indices of the output set to use in this step of solving
-        the inverse problem. By default, use all data.
-        If iterating, you can call this with inds=-N to just use the latest N data values or inds=N to use the first N data values. If you set inds=None, it will use all the data, and if you set it to a list or tuple, it will pick out those indices.
-        """
-        if iteration is None:
-            iteration = self._iteration
-        data_driven_mode = self._setup[iteration]['col']
-        if inds is None:  # default is to return all indices
-            logging.info("No observations specified. Using all of them.")
-            inds = np.arange(self._output_probability_set._dim)
+    def mud(self, x=None, iteration=None):
+        den = self.updated_pdf(x, iteration)
+        a = np.argmax(den)
+        in_val = self._input_sample_set._values[a, :]
+        out_val = self._output_sample_set._values[a, :]
+        return (in_val, out_val, a)
 
-        if isinstance(inds, int):
-            inds = [inds]  # use just one output QoI
-
-        self._setup[iteration]['inds'] = inds
-        self._output_probability_set._dim = len(inds)
-        if pushforward:
-            self.compute_pushforward(iteration=iteration)
-
-    def get_indices(self, iteration=None):
-        if iteration is None:
-            iteration = self._iteration
-        inds = self._setup[iteration]['inds']
-        if inds is None:
-            logging.info("Assimilating all data at iteration %i" % iteration)
-            inds = list(np.arange(self._output_sample_set._dim))
-        return inds
-
-    def set_noise_model(self, dist, *args, **kwds):
+    def set_noise_model(self, dist=None, iteration=None, *args, **kwds):
         """
         dist can be a number, in which case dimension is inferred
         from indices 
         """
-        dim_output = len(self.get_indices())
+        if iteration is None:
+            iteration = self._iteration
+        if dist is None:
+            logging.warn("Assuming Normal, pulling from get_std.")
+            dist = self.get_std(iteration)
+        logging.info(
+            "With this option, you will be inferring std from observed.")
+        from scipy.stats.distributions import norm
+        dim_output = len(self.get_output_indices(iteration))
+        if self._setup[iteration]['rep'] is not None:
+            dim_output = 1
         if isinstance(dist, int) or isinstance(dist, float):
             std = np.ones(dim_output)*dist
+            dist = norm(scale=std)
         elif isinstance(dist, list) or isinstance(dist, tuple):
+            if len(dist) != dim_output:
+                raise dim_not_matching("Does not match data dimension.")
             std = np.array(dist)
+            dist = norm(scale=std)
         elif isinstance(dist, np.ndarray):
             std = dist
-        else:  # assuming a distribution has been passed.
-            if isinstance(dist, scipy.stats.distributions.rv_frozen):
-                std = dist.kwds()['scale']
+            dist = norm(scale=std)
 
-        self._setup[self._iteration]['std'] = std
+        if isinstance(dist, scipy.stats.distributions.rv_frozen):
+            self._setup[self._iteration]['obs'] = dist  # store it
+            std = self._setup[self._iteration]['obs'].std()
+        else:
+            self._setup[self._iteration]['obs'] = dist(*args, **kwds)
+            std = self._setup[self._iteration]['obs'].std()
+        self._setup[self._iteration]['std'] = None
+        self._setup[self._iteration]['pre'] = None
 
     def loss_fun(self, outputs, data, data_std, mode='SWE'):
         # if std vector has shape mismatch, this will error out:
@@ -3344,11 +3419,10 @@ class discretization(object):
         # always returning 1-D output from this function.
         return qoi.reshape(-1, 1)
 
-    def format_output_data(self, x=None, iteration=None):
+    def format_output_values(self, x=None, iteration=None):
         if iteration is None:  # get current if None
             iteration = self._iteration
-        inds = self.get_indices(iteration=iteration)
-
+        inds = self.get_output_indices(iteration=iteration)
         if x is None:  # grab most recent values by default
             qoi = self._output_sample_set._values[:, inds]
         else:  # attempt to parse provided input values
@@ -3365,71 +3439,221 @@ class discretization(object):
         # if data-driven, we have to collapse the data and write it
         # to output_probability_set.
         data_driven_status = self._setup[iteration]['col']
-        data_driven_mode = self._setup[iteration]['qoi']
-        std = self.get_std(iteration)
-        if std is None:
-            std = self.set_std()
-        if isinstance(std, list) or isinstance(std, tuple):
-            std = np.array(std)
-        elif isinstance(std, int) or isinstance(std, float):
-            std = np.array([std])
-        elif isinstance(std, np.ndarray):
-            pass
-        else:
-            raise AttributeError("Could not infer std")
 
-        if len(std) == 1:
-            std = std[inds]  # this handles possible repeated data.
         # we now have to transform our QoI data if we are in data-driven mode.
         if data_driven_status:
-            data = self.get_data()
+            data_driven_mode = self._setup[iteration]['qoi']
+            std = self.get_std(iteration)
+            data = self.get_data(iteration)
             qoi = self.loss_fun(outputs=qoi, data=data,
                                 data_std=std, mode=data_driven_mode)
 
         return qoi
 
-    def get_data(self):
-        data = self._output_probability_set._reference_value
-        if data is None:
-            return self._output_sample_set._reference_value[self.get_indices()]
+    def set_repeated(self, repeat=None, iteration=None):
+        r"""
+        Toggle mode for repeated observations.
+
+        :param repeat: output indices for repeated observations
+        :type repeat: `float` or `tuple` of :type:`int`, or `int`
+
+        """
+        if iteration is None:
+            iteration = self._iteration
+        if repeat is None:
+            repeat = iteration
+        if isinstance(repeat, list) or isinstance(repeat, tuple):
+            self._setup[iteration]['rep'] = list(np.array(repeat, dtype=int))
         else:
-            return data
+            if repeat < 0 or repeat > self._output_sample_set._dim:
+                msg = "Improper output index specified"
+                msg += "for the case of repeated observations."
+                raise ValueError(msg)
+            self._setup[iteration]['rep'] = int(repeat)
 
-    def set_data(self, data=None):
-        self._output_probability_set._reference_value = data
-
-    def iterate_by(self, breaks=1):
+    def set_data_driven(self, collapse=True, iteration=None):
         r"""
-        Sequence of problems using independent QoI broken up either evenly
-        (if breaks is a number), or by a given sequence (if passed as list/tuple).
+        Toggle mode for data-driven map.
+
+        :param bool collapse: option to collapse outputs to 1-D
+
         """
-        # what other settings do we need to fix if this happens?
-        inds = self.get_indices()
-        dim = len(inds)
-        if isinstance(breaks, int):
-            if dim % breaks != 0:  # can we divide evenly?
-                raise ValueError(
-                    "Could not chunk up data as requested. Try passing a list.")
+        if iteration is None:
+            iteration = self._iteration
+        self._setup[iteration]['col'] = collapse
+
+    def get_data(self, iteration=None):
+        r"""
+        Formats the indices according to `setup` and then 
+        returns relevant data vector for a particular iteration.
+        """
+        if iteration is None:
+            iteration = self._iteration
+
+        if self._output_probability_set is None:
+            inds = np.arange(self._output_sample_set._dim)
+            return self._output_sample_set._reference_value[inds]
+        elif self._output_probability_set._reference_value is None:
+            inds = np.arange(self._output_sample_set._dim)
+            if self._output_sample_set._reference_value is not None:
+                return self._output_sample_set._reference_value[inds]
             else:
-                num_iterations = dim // breaks
-            for i in range(num_iterations):
-                self.iterate()
-                self.set_indices(
-                    list(np.array(inds)[np.arange(breaks) + i*breaks]), iteration=i)
-        else:  # assuming a list is passed
-            last_ind = 0
-            for i, br in enumerate(breaks):
-                self.set_indices(np.arange(br)+last_ind, iteration=i)
-                last_ind += br
+                msg = "Output reference is None."
+                msg += "Will use median of observed as reference data!"
+                logging.warn(msg)
+                # Return zeros as placeholder.
+                return np.array([0 for _ in range(self._output_sample_set._dim)])
+        else:  # (noisy) data is not None
+            inds = self.get_data_indices(iteration)
+            return self._output_probability_set._reference_value[inds]
 
-    def tile_by(self, length=5):
+    def set_data(self, data, std=None, inds=None, iteration=None):
         r"""
-        Sequence of problems using moving windows of given length.
+        Write the reference value to the output probability set.
+        (Bypass the checking of dimension).
+        If you pass a noise level, we will take note of it.
+        If one does not exist, create one to match the dimension.
+        inds = None default is to use all data.
         """
-        num_iterations = self._output_sample_set._dim + 1 - length
-        for i in range(num_iterations):
-            # waterfall up to dim-break
-            self.set_indices(np.arange(length) + i, iteration=i)
+        if iteration is None:
+            iteration = self._iteration
+
+        dim = len(data)
+        self.set_indices(inds, iteration)
+        if self._output_probability_set is None:
+            logging.warn("Missing output probability set. Creating.")
+            self._output_probability_set = sample_set(dim)
+
+        if inds is None:
+            inds = np.arange(len(data))
+        else:
+            inds = self.get_data_indices(iteration)
+        self._output_probability_set._reference_value[inds] = np.copy(data)
+
+        if std is None:
+            if self._setup[self._iteration]['std'] is None:
+                if self._setup[self._iteration]['obs'] is None:
+                    logging.warn(
+                        "No way to infer std. Will use sample variance.")
+                    if len(self.get_data_indices(iteration)) == 1:
+                        raise AttributeError(
+                            "Cannot take sample variance of singleton.")
+                else:
+                    logging.warn(
+                        "No std provided. Will use std from observed.")
+            else:
+                logging.warn("No std provided. Using existing entry in setup.")
+        else:
+            self._setup[iteration]['std'] = std
+        # clear predicted since we just changed indices, data, or std, all
+        # of which are part of the QoI model definition.
+        self._setup[iteration]['pre'] = None
+
+    def set_indices(self, inds, iteration=None):
+        r"""
+        Whatever is passed is written to `setup`. Clear predicted entry.
+        """
+        if iteration is None:
+            iteration = self._iteration
+        self._setup[iteration]['ind'] = inds
+        self._setup[iteration]['pre'] = None
+
+    def get_data_indices(self, iteration=None):
+        r"""
+        Reads in value from `setup` and converts it to indices for `output_probability_set`.
+        """
+        if iteration is None:
+            iteration = self._iteration
+        data_len = len(self._output_probability_set._reference_value)
+        return self.format_indices(data_len, self._setup[iteration]['ind'])
+
+    def get_output_indices(self, iteration=None):
+        r"""
+        Reads in value from `setup` and converts it to indices for `output_sample_set`.
+        In the case of repeated observations, if incomplete data is available, use it.
+        """
+        if iteration is None:
+            iteration = self._iteration
+        data_len = len(self.get_data(iteration))
+        inds = self.format_indices(data_len, self._setup[iteration]['ind'])
+        rep = self._setup[iteration]['rep']
+        if rep:  # handle repeated observations
+            if isinstance(rep, np.ndarray):
+                rep = list(rep)
+
+            if isinstance(rep, list) or isinstance(rep, tuple):
+                rep_inds = list(np.tile(rep, len(inds)//len(rep)))
+                if len(rep_inds) != len(inds):  # data available that is unaccounted for
+                    logging.warn(
+                        "Data doesn't divide evenly into repeated indices.")
+                    num_missing = len(inds) % len(rep_inds)
+                    # add "missing" repeated values.
+                    rep_inds.append(rep[:num_missing])
+                inds = rep_inds  # set as output
+            else: # repeat vector of indices
+                inds = np.ones(len(inds), dtype=int)*rep
+        else:
+            inds = np.arange(data_len)
+        return list(inds)
+
+    def format_indices(self, data_len, inds):
+        r"""
+        Converts entry in the `setup` dictionary into a set of usable 
+        indices for the data.
+        """
+        if inds is None:
+            inds = np.arange(data_len)
+        elif isinstance(inds, float):  # first or last n%
+            if inds <= 1.0:
+                if inds > 0:
+                    inds = np.arange(0, int(data_len*inds))
+                elif inds < 0:
+                    inds = np.arange(int(data_len*(1+inds)), data_len)
+                else:  # inds = 0.0?
+                    raise ValueError("Please specify nonzero index.")
+            else:  # bootstrap if >= 1.0 to create 'larger' dataset
+                inds = np.random.randint(0, data_len, int(data_len*inds))
+        elif isinstance(inds, int):  # first or last n entries
+            if inds < 0:
+                inds = np.arange(data_len + inds, data_len)
+            elif inds > 0:
+                inds = np.arange(0, inds)
+            else:  # inds = 0
+                raise ValueError("Please specify nonzero index.")
+        elif isinstance(inds, tuple):
+            if len(inds) == 1:
+                start = 0
+                stop = data_len
+                by = inds[0]
+            elif len(inds) == 2:
+                start = inds[0]
+                stop = data_len
+                by = inds[1]
+            else:
+                start = inds[0]
+                stop = inds[1]
+                by = inds[2]
+
+            # if floats passed for any args, convert them.
+            if isinstance(start, float):
+                start = int(data_len*start)
+            if isinstance(stop, float):
+                stop = int(data_len*stop)
+            if isinstance(by, float):
+                by = int(data_len*by)
+            if stop < start or by > data_len:
+                raise ValueError(
+                    "Ordering mismatch. Check index specifications.")
+            inds = np.arange(start, stop, by)
+        else:
+            pass  # use lists  and numpy-arrays as-is
+        return list(inds)
+
+    def get_output(self):
+        return self.get_output_sample_set()
+
+    def get_input(self):
+        return self.get_input_sample_set()
 
     def set_data_from_reference(self, iteration=None, dist=None):
         # goes and grabs the reference output value for a particular iteration
@@ -3437,15 +3661,15 @@ class discretization(object):
 
         if iteration is None:
             iteration = self._iteration
-        inds = self.get_indices(iteration)
-
-        dim = len(inds)
+        # since we are accessing output values.
+        inds = self.get_output_indices(iteration)
+        
+        if dist is None:
+            logging.warn("Using observed as noise model.")
+            dist = self._setup[iteration]['obs']
+        
         # support repeating data.
         Q_ref = self._output_sample_set._reference_value
-        if dist is None:
-            noise_model = self._output_probability_set._distribution
-        else:
-            noise_model = dist
 
         if Q_ref is None:
             logging.info("Problem with output reference value.")
@@ -3453,47 +3677,27 @@ class discretization(object):
             lam_ref = self._input_sample_set._reference_value
             if lam_ref is not None:
                 if model is None:
-                    raise AttributeError("Missing model.")
+                    if dist is None:
+                        raise AttributeError("Missing model and observed.")
+                    else:
+                        logging.warn("Missing model. Using distribution.")
                 else:
                     logging.info("Using model to map input reference value.")
                     Q_ref = model(lam_ref)[inds]
         else:  # existing reference is correctly set
             # support repeated observations using indices. correct length.
             Q_ref = Q_ref[inds]
-
-        # temporarily re-set dimension correctly so that the noise is drawn properly
-        unique = len(np.unique(inds))
-        self._output_probability_set._dim = unique
-        Q_ref += self._output_probability_set.rvs(
-            dim//unique, dist=noise_model).ravel()
-        if not self._setup[iteration]['col']:
-            Q_ref -= self._output_probability_set._reference_value
-        # set noisy observation as new data vector.
+        
+        if np.max(np.abs(dist.mean())) == 0:
+            noise = self._output_probability_set.rvs(dist=dist)
+            Q_ref = Q_ref + noise
+        else:
+            logging.warn("Non-homogeneous noise. Using random draw for data.")
+            Q_ref = self._output_probability_set.rvs(dist=dist)
+        
         self._output_probability_set._reference_value = Q_ref
-        self._output_probability_set._dim = dim
+        
         return Q_ref
-
-    def simulate_repeated(self, data, std=None, inds=None):
-        if inds is None:
-            inds = self.get_indices()  # returns list for current iteration
-            inds = inds*(len(data)//len(inds))  # infer repeats from data.
-        if isinstance(inds, list) or isinstance(inds, tuple):
-            inds = np.array(inds)
-        if len(inds) != len(data):
-            raise ValueError(
-                "Could not equally divide outputs into data stream.")
-        if std is not None:
-            self.set_std(std)
-        # just write data directly, no checks.
-        self._output_probability_set._reference_value = data
-
-    def estimate_data_std(self):
-        Q_ref = self._output_probability_set._reference_value
-        if Q_ref is None:
-            Q_ref = self.set_data_from_reference()
-        std = np.std(Q_ref)
-        self._setup[self._iteration]['std'] = std
-        return std
 
     def set_std(self, std=None, iteration=None):
         if iteration is None:
@@ -3502,28 +3706,63 @@ class discretization(object):
         if std is None:  # nothing passed
             if self._setup[iteration]['std'] is None:  # nothing written
                 if self._setup[iteration]['obs'] is None:
-                    logging.info(
-                        "Could not infer noise level. Please specify.")
                     logging.warn(
                         "Defaulting to estimating using data sample variance.")
-                    return self.estimate_data_std()
                 else:  # if an observed is lingering, assuming it is for this reason.
-                    logging.info("Inferring standard deviation from observed.")
-                    # method belongs to distribution
-                    std = self._setup[iteration]['obs'].std()
-                    # if data-driven, overwrite now that we have it's info.
-                    if self._setup[iteration]['col']:
-                        self._setup[iteration]['obs'] = None
+                    logging.warn("Inferring standard deviation from observed.")
+                    # method std() belongs to distribution
+        else:  # write as-is if anything except None
+            # but if numpy array, convert to list.
+            if isinstance(std, np.ndarray):
+                std = list(std)
 
+            if not(isinstance(std, int) or isinstance(std, float)):
+                if len(std) != len(self.get_data_indices(iteration)):
+                    if len(std) == 1:
+                        std = std[0]
+                    elif len(std) == self._output_sample_set._dim:
+                        logging.warn(
+                            "Wrong size std. Assuming these correspond to repeated outputs.")
+                        pass
+                    else:
+                        raise dim_not_matching(
+                            "Wrong size std (mismatch with data indices).")
+
+        self._setup[iteration]['pre'] = None
         self._setup[self._iteration]['std'] = std
+        # return what will result from setting the std this way.
+        return self.get_std(iteration)
 
     def get_std(self, iteration=None):
         if iteration is None:
             iteration = self._iteration
         std = self._setup[iteration]['std']
-        return std
+        if std is None:  # if empty, get observed or estimate
+            if self._setup[iteration]['obs'] is None:
+                logging.info("Using sample variance estimate.")
+                sample_data = self.get_data(iteration)
+                if len(sample_data) == 1:
+                    msg = "Cannot take variance of singeleton.\n"
+                    msg += "Try changing indexes or turn-off data-driven"
+                    raise AttributeError(msg)
+                else:
+                    std = np.std(sample_data)
+            else:
+                logging.info("Using variance from observed.")
+                std = self._setup[iteration]['obs'].std()
 
-    def data_driven(self, inds=None, data=None, std=None):
+        if isinstance(std, int) or isinstance(std, float):
+            inds = self.get_data_indices(iteration)
+            std = np.ones(len(inds))*std
+        elif isinstance(std, list) or isinstance(std, tuple):
+            if len(std) == len(self.get_data(iteration)):
+                pass
+            elif len(std) == self._output_sample_set._dim:
+                std = std[self.get_output_indices(iteration)]
+
+        return list(std)
+
+    def data_driven(self, inds=None, data=None, std=None, iteration=None):
         r"""
         Requires reference output probability value to work. 
         Understood to mean "data" already polluted with noise.
@@ -3534,103 +3773,8 @@ class discretization(object):
         reference value in `output_probability_set`.
         passing inds alone can be like bootstrapping if using repeated.
         """
-        if inds is None:
-            inds = self.get_indices()  # get current indices, or return all.
-
-        if isinstance(inds, int):
-            dim = 1
-        else:
-            dim = len(inds)  # we now have our problem dimension specified.
-            self._setup[self._iteration]['inds'] = inds
-
-        self._setup[self._iteration]['col'] = True
-        self._setup[self._iteration]['obs'] = None  # should not use it.
-        # reformat prior Q if needed.
-        if self._output_probability_set is None:
-            logging.info("Creating output probability set.")
-            self._output_probability_set = sample_set(dim)
-            from scipy.stats.distributions import norm
-            if std is not None:
-                self._output_probability_set._distribution = norm(
-                    loc=0, scale=std)
-            else:
-                logging.warn("Assuming data has unit variance.")
-                self._output_probability_set._distribution = norm(
-                    loc=0, scale=1)
-                std = 1
-
-        if std is None:
-            std = self.get_std()
-            if std is None:
-                logging.log("Missing std, be careful.")
-            else:
-                from scipy.stats.distributions import norm
-                self._output_probability_set._distribution = norm(
-                    loc=0, scale=std)
-        else:
-            from scipy.stats.distributions import norm
-            self.set_std(std)
-            self._output_probability_set._distribution = norm(loc=0, scale=std)
-
-        self._output_probability_set._dim = dim
-        Q_ref = self._output_probability_set._reference_value
-        if Q_ref is not None:
-            if isinstance(Q_ref, int) or isinstance(Q_ref, float):
-                Q_ref = np.array([Q_ref])
-            elif isinstance(Q_ref, list) or isinstance(Q_ref, tuple):
-                Q_ref = np.array(Q_ref)
-
-            if len(Q_ref) != dim:  # if lengths mismatch,
-                Q_ref = Q_ref[inds]  # bootstrapping data
-
-        else:  # if Q_ref is empty, attempt to write with data.
-            Q_ref = data
-
-        # if data is provided, use it.
-        if data is not None:
-            if len(data) == dim:
-                Q_ref = data
-            else:
-                raise dim_not_matching("Data dimension mismatch.")
-
-        # can still be None if data was None. Try to fix this.
-        if Q_ref is None:
-            if data is None:
-                msg = "Need some data to work with."
-                msg += "Attempting to call `set_data_from_reference`"
-                # inds are set so this should match size
-                logging.warn(msg)
-                Q_ref = self.set_data_from_reference()
-            else:  # data is provided.
-                if dim != len(data):
-                    raise dim_not_matching("Data dimension mismatch.")
-                else:
-                    Q_ref = data
-
-        if isinstance(Q_ref, int) or isinstance(Q_ref, float):
-            Q_ref = np.array([Q_ref])
-        elif isinstance(Q_ref, list) or isinstance(Q_ref, tuple):
-            Q_ref = np.array(Q_ref)
-
-        # now that all checks are satisfied, write the data.
-        self._output_probability_set._reference_value = Q_ref
-
-        # set observed.
-        # at the end of this, we compute the pushforwards by setting indices for present iteration
-        if isinstance(inds, int):
-            if inds > 0:  # chunk
-                logging.info("Using data in consecutive batches of %i" % inds)
-                self.iterate_by(inds)
-            elif inds < 0:  # tile
-                logging.info(
-                    "Defining successive problems in batches of %i" % (-inds))
-                self.tile_by(-inds)
-            else:  # inds = 0
-                self._setup[self._iteration]['col'] = False
-        else:  # got a list
-            # this will call pushforward, which will read in the setup.
-            self.set_indices(inds)
-        return None
+        self.set_data(data=data, iteration=iteration, std=std, inds=inds)
+        self.data_driven_mode(True)
 
     def get_setup(self):
         return self._setup
@@ -3638,16 +3782,23 @@ class discretization(object):
     def default_setup(self):
         # check for data-driven with
         # if not abs(col): ... do normal. if 1, current inds, if -1, all inds.
-        self._setup[self._iteration] = {'inds': None,
-                                        'col': False,
-                                        'qoi': 'SWE',
-                                        'std': None,
-                                        'obs': None,
-                                        'pre': None,
-                                        'model': None}
+        D = {'ind': None,
+             'rep': False,
+             'col': False,
+             'qoi': 'SWE',
+             'std': None,
+             'obs': None,
+             'pre': None,
+             'model': None
+             }
+        try:
+            self._setup[self._iteration] = D
+        except TypeError:
+            self._setup = {0: D}
 
     def set_initial_densities(self):
         r"""
+        Hot mess. fix it up.
         """
         if self._values is None:
             raise AttributeError("Missing values.")

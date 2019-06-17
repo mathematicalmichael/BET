@@ -452,7 +452,7 @@ class sampler(object):
 
         # Attach necessary attributes to discretization
         discretization._setup[0]['model'] = self.lb_model
-        discretization._setup[0]['inds'] = np.arange(output_dim)
+        discretization._setup[0]['ind'] = list(np.arange(output_dim))
 
         return discretization
 
@@ -539,7 +539,18 @@ class sampler(object):
         if data is None:  # otherwise, append values
             if new_data is not None:  # reference input must have been specified
                 Q_ref = disc._output_probability_set._reference_value
-                new_data += disc._output_probability_set.rvs(len(new_data))
+                # try to infer observed
+                noise = disc._setup[disc._iteration]['obs']
+                if noise is None:
+                    std = disc._setup[disc._iteration]['std']
+                    if std is None:
+                        raise AttributeError("Could not infer noise model")
+                    else:
+                        logging.warn(
+                            "Missing noise model but std present. Assuming Normal.")
+                        noise = scipy.stats.distributions.norm(scale=std)
+                new_data += disc._output_probability_set.rvs(len(new_data),
+                                                             dist=noise)
                 # add to noisy list
                 data = np.concatenate((Q_ref, new_data), axis=1)
         else:  # data that is passed is assumed to be noisy.
@@ -560,12 +571,12 @@ class sampler(object):
         new._setup = discretization._setup.copy()
         new._setup[new._iteration]['model'] = self.lb_model
         # if inds is None, keep using all the data.
-        if discretization._setup[discretization._iteration]['inds'] is not None:
+        if discretization._setup[discretization._iteration]['ind'] is not None:
             # use just new data by default if previous inds existed
-            new._setup[new._iteration]['inds'] = np.arange(
+            new._setup[new._iteration]['ind'] = np.arange(
                 num_new_obs) + new_old_obs
-        else:
-            new._setup[new._iteration]['inds'] = None
+        else:  # if None, copy.
+            new._setup[new._iteration]['ind'] = None
         noise = discretization._setup[discretization._iteration]['std']
         new._setup[new._iteration]['std'] = noise  # inherit noise distribution
         data_driven = discretization._setup[discretization._iteration]['col']

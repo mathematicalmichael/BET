@@ -12,6 +12,7 @@ import bet.sample as sample
 import bet.util as util
 import bet.sampling.basicSampling as bsam
 from bet.Comm import comm, MPI
+import scipy.stats.distributions as dist
 
 #local_path = os.path.join(os.path.dirname(bet.__file__), "/test")
 local_path = ''
@@ -448,6 +449,131 @@ class Test_sample_set(unittest.TestCase):
         domain = np.ones((self.dim, 2))
         self.sam_set.set_domain(domain)
         nptest.assert_array_equal(domain, self.sam_set.get_domain())
+
+    def test_distribution_and_domain(self):
+        """
+        Test set/get distribution and domain inference.
+        """
+        domain = np.array([[0, 1] for _ in range(self.dim)])
+        import scipy
+        from scipy.stats.distributions import uniform
+
+        # default behavior is unit hypercube
+        self.sam_set.set_distribution()
+        assert isinstance(self.sam_set.get_distribution(),
+                          scipy.stats.distributions.rv_frozen)
+
+        # set frozen - should be able to interpret dimension.
+        dist = uniform(loc=0, scale=1)
+        self.sam_set.set_distribution(dist)
+        assert isinstance(self.sam_set.get_distribution(),
+                          scipy.stats.distributions.rv_frozen)
+
+        # ensure domain was properly inferred
+        nptest.assert_array_equal(domain, self.sam_set.get_domain())
+        # set continuous and make sure it gets instantiated
+        self.sam_set.set_distribution(uniform)
+        assert isinstance(self.sam_set.get_distribution(),
+                          scipy.stats.distributions.rv_frozen)
+        nptest.assert_array_equal(domain, self.sam_set.get_domain())
+
+        # try another domain
+        new = [1 for _ in range(self.dim)]
+        self.sam_set.set_distribution(uniform(loc=1,
+                                              scale=new))
+        assert isinstance(self.sam_set.get_distribution(),
+                          scipy.stats.distributions.rv_frozen)
+        nptest.assert_array_equal(domain+1,
+                                  self.sam_set.get_domain())
+        # try another domain and handler.
+        self.sam_set.set_dist(uniform(loc=new,
+                                      scale=0.5))
+        assert isinstance(self.sam_set.get_dist(),
+                          scipy.stats.distributions.rv_frozen)
+        nptest.assert_array_equal(1+domain*0.5,
+                                  self.sam_set.get_domain())
+
+        # incorrect dimension should raise error
+        try:
+            self.sam_set.set_distribution(uniform(loc=0,
+                                                  scale=[1, 1, 1, 1]))
+        except sample.dim_not_matching:
+            pass
+
+    def test_generate_samples(self):
+        """
+        Test random sample generation.
+        """
+        # default to uniform hypercube
+        self.sam_set.set_distribution()
+        for num in [1, 10, 50, 100]:
+            self.sam_set.generate_samples(num)
+            assert self.sam_set.check_num() == num
+        from scipy.stats.distributions import uniform
+        # make sure keyword gets passed to continuous distribution.
+        self.sam_set.set_distribution(uniform, loc=2)
+        for num in [1, 10, 50, 100]:
+            self.sam_set.generate_samples(num)
+            assert self.sam_set.check_num() == num
+        # frozen distribution
+        self.sam_set.set_distribution(uniform(loc=2))
+        for num in [1, 10, 50, 100]:
+            self.sam_set.generate_samples(num)
+            assert self.sam_set.check_num() == num
+
+    def test_rvs(self):
+        """
+        Test ability to use rvs generation with correct shape.
+        """
+        # passing continuous distribution => should convert to frozen.
+        from scipy.stats.distributions import uniform
+        x = self.sam_set.rvs(dist=uniform)
+        assert len(x) == 1
+        from scipy.stats.distributions import norm
+        x = self.sam_set.rvs(dist=norm, loc=1)
+        assert len(x) == 1
+        # now test setting using frozen distributions
+        for num in [1, 10, 50, 100]:
+            self.sam_set.set_values(self.sam_set.rvs(num, dist=norm()))
+            assert self.sam_set.check_num() == num
+
+    def test_pdf(self):
+        """
+        Test pdf capabilities
+        """
+        import scipy.stats.distributions as dists
+        self.sam_set.set_dist(dists.norm)
+        self.sam_set.generate_samples(100)
+        x = self.sam_set.get_values()
+        for dst in [dists.norm, dists.uniform]:
+            y = self.sam_set.pdf(x=x, dist=dst(loc=0, scale=1))
+            tru = dst.pdf(x, loc=0, scale=1).prod(axis=1)
+            nptest.assert_array_equal(tru, y)
+
+    def test_cdf(self):
+        """
+        Test cdf capabilities
+        """
+        import scipy.stats.distributions as dists
+        self.sam_set.set_dist(dists.norm)
+        self.sam_set.generate_samples(100)
+        x = self.sam_set.get_values()
+        for dst in [dists.norm, dists.uniform]:
+            tru = dst.cdf(x, loc=1, scale=2).prod(axis=1)
+            z = self.sam_set.cdf(x=x, dist=dst(loc=1, scale=2))
+            nptest.assert_array_equal(tru, z)
+
+    def test_estimate_probabilities_mc(self):
+        """
+        Test MC assumption in probabilities.
+        """
+        import scipy.stats.distributions as dists
+        self.sam_set.set_dist(dists.norm)
+        for num in [1, 10, 50, 100]:
+            self.sam_set.generate_samples(num)
+            self.sam_set.estimate_probabilities_mc()
+            assert len(np.unique(self.sam_set.get_probabilities())) == 1
+            assert self.sam_set.get_probabilities()[0] == 1.0/num
 
 
 class Test_sample_set_1d(Test_sample_set):
@@ -1548,3 +1674,264 @@ class Test_cartesian_sample_set(unittest.TestCase):
         self.sam_set.exact_volume_lebesgue()
         volumes = self.sam_set.get_volumes()
         nptest.assert_array_almost_equal(volumes, [.25, 0.25, 0.25, 0.25, 0.0])
+
+
+class Test_sampling_discretization(unittest.TestCase):
+    r"""
+    Test the sampling-based approach.
+    """
+
+    def setUp(self):
+        self.dim1 = 2
+        self.num = 100
+        self.dim2 = 2
+        values1 = np.random.rand(self.num, self.dim1)
+        values2 = np.random.randn(self.num, self.dim2)
+        self.input_values = values1
+        self.output_values = values2
+        values3 = np.ones((self.num, self.dim2))
+        self.input_set = sample.sample_set(dim=self.dim1)
+        self.output_set = sample.sample_set(dim=self.dim2)
+        self.output_probability_set = sample.sample_set(dim=self.dim2)
+        self.input_set.set_values(values1)
+        self.output_set.set_values(values2)
+        self.output_probability_set.set_values(values3)
+        self.disc = sample.discretization(input_sample_set=self.input_set,
+                                          output_sample_set=self.output_set,
+                                          output_probability_set=
+                                          self.output_probability_set)
+
+    def test_format_indices(self):
+        """
+        Test multitude of index-formatting options. 
+        """
+        # Single Float Test
+        a = 0.3
+        b = a-1
+        n = 50
+        set_inds = self.disc.format_indices  # shortened function handle
+        nptest.assert_array_equal(np.array(set_inds(n, a) +
+                                           set_inds(n, b)),
+                                  np.arange(n))
+
+        # Integer Test
+        nptest.assert_array_equal(np.array(set_inds(n, int(a*n)) +
+                                           set_inds(n, int(b*n))),
+                                  np.arange(n))
+
+        # List Test
+        nptest.assert_array_equal(np.array(set_inds(n, np.arange(n))),
+                                  np.arange(n))
+        nptest.assert_array_equal(np.array(set_inds(n, list(np.arange(n)))),
+                                  np.arange(n))
+
+        # Tuple Test(s)
+        for i in range(1, n):
+            nptest.assert_array_equal(np.array(set_inds(n+1, (i,))),
+                                      np.arange(0, n+1, i))
+            nptest.assert_array_equal(np.array(set_inds(n, None)),
+                                      np.arange(n))
+            nptest.assert_array_equal(np.array(set_inds(n, (i, 1))),
+                                      np.arange(n)[i::])
+            nptest.assert_array_equal(np.array(set_inds(n, (i, 2))),
+                                      np.arange(n)[np.arange(i, n, 2)])
+            nptest.assert_array_equal(np.array(set_inds(n, (i, 1.0, 3))),
+                                      np.arange(n)[np.arange(i, n, 3)])
+            nptest.assert_array_equal(np.array(set_inds(n, (i, n, 1))),
+                                      np.arange(n)[i::])
+            nptest.assert_array_equal(np.array(set_inds(n, (i, n, 2))),
+                                      np.arange(n)[np.arange(i, n, 2)])
+            nptest.assert_array_equal(np.array(set_inds(n, (i, n, 0.2))),
+                                      np.arange(n)[np.arange(i, n, int(0.2*n))])
+            nptest.assert_array_equal(np.array(set_inds(n, (0, 0.2, i))),
+                                      np.arange(n)[np.arange(0, int(0.2*n), i)])
+            nptest.assert_array_equal(np.array(set_inds(n, (1, 0.2, i))),
+                                      np.arange(n)[np.arange(1, int(0.2*n), i)])
+            nptest.assert_array_equal(np.array(set_inds(n, (0.2, 1.0, 1))),
+                                      np.arange(n)[np.arange(int(0.2*n), n, 1)])
+            nptest.assert_array_equal(np.array(set_inds(n, (0.2, n, 2))),
+                                      np.arange(n)[np.arange(int(0.2*n), n, 2)])
+
+    
+    def test_empty_problem(self):
+        """
+        Test problem setup syntaxes. 
+        """
+        D = self.disc
+        def mymodel(input_values):
+            return 2*input_values[:,:self.dim2]
+        D.set_model(mymodel)
+        D.set_initial()  # uniform [0,1]
+        # D.set_observed(dist.norm())  # set_output_probability_set [TK - fix]
+        D.get_output().set_reference_value(2*np.ones(self.dim2))  # only for size inference?
+        D.set_observed()  # this should set the data vector.
+        # nptest.assert_array_equal(D.get_data(), 2)
+        D.set_predicted()  # should be optional...
+
+        # evaluate on existing samples 
+        D.updated_pdf()
+        D.initial_pdf()
+        D.observed_pdf()
+        D.predicted_pdf()
+
+        # evaluate at a given set of points
+        D.initial_pdf(self.input_values)
+        D.updated_pdf(self.input_values)
+        D.observed_pdf(self.output_values)
+        D.predicted_pdf(self.output_values)
+
+    def test_set_observed_rv_frozen(self):
+        """
+        Test default behavior of set_observed.
+        """
+        D = self.disc
+        D.set_observed(dist.norm)
+        nptest.assert_array_equal(D.get_data(), 0)
+        D.set_observed(dist.norm(loc=2))
+        nptest.assert_array_equal(D.get_data(), 2)
+
+    def test_solve_problem(self):
+        """
+        Solve inverse problem.
+        """
+        D = self.disc
+        def mymodel(input_values):
+            return 2*input_values
+        D.set_model(mymodel)
+        D.set_initial(dist.uniform(loc=[0]*self.dim1,
+                      scale=[1]*self.dim1))  # uniform [0,1]
+        D.set_observed(dist.uniform(loc=[0.5]*self.dim1,
+                      scale=[1]*self.dim1))  # set_output_probability_set
+        D.set_predicted(dist.uniform(loc=[0]*self.dim1,
+                        scale=[2]*self.dim1))  # should be optional...
+        updated_pdf = D.updated_pdf()
+        pos_vals = D.get_input_values()[updated_pdf>0,:]
+        nptest.assert_array_equal(pos_vals < 0.75, True)
+        nptest.assert_array_equal(pos_vals > 0.25, True)  # greater than
+
+    def test_set_observed_no_reference(self):
+        """
+        Test how observed behaves without reference output.
+        """
+        D = self.disc
+        for l in [1,2,3]:
+            D.set_observed(loc=l) # infer dimension correctly
+            D.get_data() 
+        
+    def test_set_data(self):
+        """
+        Test straight-forward data-setting. 
+        """
+        D = self.disc
+        ref_val = np.ones(self.dim2*2)
+        # set manually
+        D._output_probability_set._reference_value = np.copy(ref_val)
+        nptest.assert_array_equal(D.get_data(), ref_val)
+        # set using function
+        D.set_data(ref_val) 
+        nptest.assert_array_equal(D.get_data(), ref_val)
+        # test perturbation in-place
+        D._output_probability_set._reference_value += 1
+        nptest.assert_array_equal(D.get_data(), ref_val + 1)
+
+    def test_set_data_from_observed(self):
+        """
+        Test using mean/median/bound of observed as data.
+        """
+        D = self.disc
+        D.set_observed()
+        
+        a, b = 1, 2
+        loc, scale = 0, 1
+
+        obs_dist = dist.beta(a=a, b=b, loc=loc, scale=scale)
+        D.set_observed(obs_dist)
+        # take draw from distribution
+        D.set_data_from_observed()
+        assert obs_dist.mean() == D.get_data()
+        D.set_data_from_observed('mean')
+        assert obs_dist.mean() == D.get_data()
+        D.set_data_from_observed('median')
+        assert obs_dist.median() == D.get_data()
+        # interval around mean value using our keywords: min/max
+        D.set_data_from_observed('min')
+        assert obs_dist.interval(0.99)[0] == D.get_data()
+        D.set_data_from_observed('min', alpha=0.15)
+        assert obs_dist.interval(0.15)[0] == D.get_data()
+        D.set_data_from_observed('max')
+        assert obs_dist.interval(0.99)[1] == D.get_data()
+        D.set_data_from_observed('max', alpha=0.25)
+        assert obs_dist.interval(0.25)[1] == D.get_data()
+        # expected value
+        D.set_data_from_observed('expect')
+        assert obs_dist.expect() == D.get_data()
+        D.set_data_from_observed('expect', lb=(scale-loc)/2)
+        assert obs_dist.expect(lb=(scale-loc)/2) == D.get_data()
+
+    def test_set_data_from_reference(self):
+        """
+        Test using reference and observed to perturb
+        """
+        D = self.disc
+        ref_val = np.ones(self.dim2)
+        D._output_sample_set.set_reference_value(ref_val)
+        
+        std = 0.1
+        noise_dist = dist.norm(loc=0, scale=std)
+
+        D.set_noise_model(noise_dist)
+        D.set_data_from_reference()
+        assert np.max(np.abs(D.get_data() - ref_val)) < std*6
+
+        # should be able to pass scalar values and have normal assumption
+        D.set_noise_model(std*2)  # double error level
+        D.set_data_from_reference()
+        assert np.max(np.abs(D.get_data() - ref_val)) < std*12
+        
+    def test_set_data_from_observed(self):
+        """
+        Test using median of observed as data.
+        """
+        D = self.disc
+
+    def test_set_initial(self):
+        """
+        Test setting initial.
+        """
+        import scipy.stats as sstats
+        D = self.disc
+        D.set_initial()
+        assert isinstance(D.get_initial().dist,
+                          sstats._continuous_distns.uniform_gen)
+        D.get_initial_distribution()
+
+    def test_set_observed(self):
+        """
+        Test setting initial.
+        """
+        import scipy.stats as sstats
+        D = self.disc
+        D.set_observed(dist.norm(loc=np.arange(self.dim2)))
+        assert isinstance(D.get_observed().dist,
+                          sstats._continuous_distns.norm_gen)
+
+    def test_set_predicted(self):
+        """
+        Test setting initial.
+        """
+        import scipy.stats as sstats
+        from scipy.stats import gaussian_kde as gkde
+        D = self.disc
+        num = 21
+        
+        def mymodel(input_values):
+            return 2*input_values
+        D.set_model(mymodel)
+        D.set_initial(num=num)
+        assert D.check_nums() == num
+        D.set_predicted()
+        assert isinstance(D.get_predicted(), gkde)
+        D.set_predicted(dist.uniform(loc=0,scale=1))
+        assert isinstance(D.get_predicted().dist,
+                          sstats._continuous_distns.uniform_gen)
+
