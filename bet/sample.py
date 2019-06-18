@@ -3240,7 +3240,7 @@ class discretization(object):
         """
         if iteration is None:  # if not provided, assume "current"
             iteration = self._iteration
-        
+
         for i in range(0, iteration + 1):  # get all previous
             data = self.format_output_values(x=x, iteration=i)
             dim = data.shape[1]
