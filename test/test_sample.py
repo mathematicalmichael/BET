@@ -1961,6 +1961,16 @@ class Test_sampling_discretization(unittest.TestCase):
         D.set_data(np.ones(self.dim2))
         D.set_std(0.1)
         nptest.assert_array_equal(D.get_std(), 0.1 * np.ones(self.dim2))
+        # make sure vector of correct length works
+        vec = np.random.rand(self.dim2)
+        D.set_std(vec)
+        nptest.assert_array_equal(D.get_std(), vec)
+        vec = np.random.rand(self.dim2-1)
+        try:  # should throw dim_not_matching error.
+            D.set_std(vec)
+            assert len(D.get_std()) == self.dim2
+        except sample.dim_not_matching:
+            pass
 
     def test_likelihood(self):
         """

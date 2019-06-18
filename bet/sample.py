@@ -3827,19 +3827,24 @@ class discretization(object):
             # but if numpy array, convert to list.
             if isinstance(std, np.ndarray):
                 std = list(std)
+                if len(std) != len(self.get_data_indices(iteration)):
+                    msg = "Wrong size std (mismatch with data indices)."
+                    raise dim_not_matching(msg)
 
             if not(isinstance(std, int) or isinstance(std, float)):
                 if len(std) != len(self.get_data_indices(iteration)):
                     if len(std) == 1:
                         std = std[0]
                     elif len(std) == self._output_sample_set._dim:
-                        logging.warn(
-                            "Wrong size std. Assuming these correspond to repeated outputs.")
+                        msg = "Wrong size std."
+                        msg = "Assuming these correspond to repeated outputs."
+                        logging.warn(msg)
                         pass
                     else:
-                        raise dim_not_matching(
-                            "Wrong size std (mismatch with data indices).")
-
+                        msg = "Wrong size std (mismatch with data indices)."
+                        raise dim_not_matching(msg)
+        
+                
         self._setup[iteration]['pre'] = None
         self._setup[self._iteration]['std'] = std
         # return what will result from setting the std this way.
