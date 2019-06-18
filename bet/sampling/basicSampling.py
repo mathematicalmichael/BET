@@ -548,7 +548,8 @@ class sampler(object):
                     else:
                         logging.warn(
                             "Missing noise model but std present. Assuming Normal.")
-                        noise = scipy.stats.distributions.norm(scale=std)
+                        from scipy.stats import distributions
+                        noise = distributions.norm(scale=std)
                 new_data += disc._output_probability_set.rvs(len(new_data),
                                                              dist=noise)
                 # add to noisy list
