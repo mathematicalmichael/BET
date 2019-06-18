@@ -3110,7 +3110,7 @@ class discretization(object):
                     v = np.concatenate((v, model(lam_ref)))
                 try:
                     y = np.concatenate((y, z), axis=1)
-                except AxisError:  # 1d support
+                except np.AxisError:  # 1d support
                     y = np.concatenate((y, z.reshape(-1, 1)), axis=1)
             y = y[:, 1:]  # remove zeros
         self._output_sample_set._dim = y.shape[1]
@@ -3242,7 +3242,8 @@ class discretization(object):
             iteration = self._iteration
 
         data_driven_status = self._setup[iteration]['col']
-
+        data = self.format_output_values(x=x, iteration=i)
+        dim = data.shape[1]
         for i in range(0, iteration + 1):  # get all previous
             data_driven_status = self._setup[i]['col']
             if data_driven_status:
@@ -3261,7 +3262,7 @@ class discretization(object):
             else:  # attempt to set observed based on stored info
                 obs = self._setup[i]['obs']  # load observed dist
 
-            data = self.format_output_values(x=x, iteration=i)
+            
             temp_eval = self._output_probability_set.pdf(x=data, dist=obs)
             if i == 0:
                 out = temp_eval
@@ -3386,12 +3387,10 @@ class discretization(object):
             x = self._input_sample_set._values
             y = self._output_sample_set._values
         else:
-            num = x.shape[0]
             y = np.zeros((x.shape[0], 1))  # temporary vector of correct shape
 
             for iteration in self._setup.keys():  # map through every model
                 inds = self.get_output_indices(iteration)
-                dim = len(inds)
                 unique = len(np.unique(inds))
                 model = self._setup[iteration]['model']
                 # ensure model output size
