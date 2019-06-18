@@ -3240,11 +3240,10 @@ class discretization(object):
         """
         if iteration is None:  # if not provided, assume "current"
             iteration = self._iteration
-
-        data_driven_status = self._setup[iteration]['col']
-        data = self.format_output_values(x=x, iteration=i)
-        dim = data.shape[1]
+        
         for i in range(0, iteration + 1):  # get all previous
+            data = self.format_output_values(x=x, iteration=i)
+            dim = data.shape[1]
             data_driven_status = self._setup[i]['col']
             if data_driven_status:
                 data_driven_mode = self._setup[i]['qoi']
@@ -3262,7 +3261,6 @@ class discretization(object):
             else:  # attempt to set observed based on stored info
                 obs = self._setup[i]['obs']  # load observed dist
 
-            
             temp_eval = self._output_probability_set.pdf(x=data, dist=obs)
             if i == 0:
                 out = temp_eval
