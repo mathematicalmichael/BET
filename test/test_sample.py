@@ -2040,7 +2040,7 @@ class Test_sampling_repeated(Test_sampling_discretization):
 
     def test_solve_problem(self):
         """
-        Solve inverse problem (input dim ≠ output dim)
+        Solve inverse problem (input dim != output dim)
         """
         D = self.disc
 
