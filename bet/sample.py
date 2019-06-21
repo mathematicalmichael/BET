@@ -589,7 +589,7 @@ class sample_set_base(object):
         :type values: :class:`numpy.ndarray` of shape (some_num, dim)
         """
         self._values = np.concatenate((self._values, util.
-                                       fix_dimensions_data(values_local,
+                                       fix_dimensions_data(values,
                                                            self._dim)), 0)
 
     def append_values_local(self, values_local):
@@ -1044,8 +1044,7 @@ class sample_set_base(object):
             int(comm.rank < n_mc_points % comm.size)
         width = self._domain[:, 1] - self._domain[:, 0]
         mc_points = width * np.random.random((n_mc_points_local,
-                                              self._domain.shape[0])) +
-        self._domain[:, 0]
+                                              self._domain.shape[0])) + self._domain[:, 0]
         (_, emulate_ptr) = self.query(mc_points)
         vol = np.zeros((num,))
         for i in range(num):
@@ -2896,14 +2895,15 @@ class discretization(object):
         """
         mi = self._input_sample_set.merge(disc._input_sample_set)
         mo = self._output_sample_set.merge(disc._output_sample_set)
-        mei = self._emulated_input_sample_set.
-        merge(disc._emulated_input_sample_set)
-        meo = self._emulated_output_sample_set.
-        merge(disc._emulated_output_sample_set)
+        mei = self._emulated_input_sample_set.\
+            merge(disc._emulated_input_sample_set)
+        meo = self._emulated_output_sample_set.\
+            merge(disc._emulated_output_sample_set)
 
         return discretization(input_sample_set=mi,
                               output_sample_set=mo,
-                              output_probability_set=self._output_probability_set,
+                              output_probability_set=self.
+                              _output_probability_set,
                               emulated_input_sample_set=mei,
                               emulated_output_sample_set=meo)
 
@@ -3086,8 +3086,8 @@ class discretization(object):
             self._output_sample_set.set_distribution(dist, *args, **kwds)
             if iteration is None:
                 iteration = self._iteration
-            self._setup[iteration]['pre'] = self._output_sample_set.
-            get_distribution()
+            self._setup[iteration]['pre'] = self._output_sample_set.\
+                get_distribution()
         else:
             return self.compute_pushforward(dist, iteration, *args, **kwds)
 

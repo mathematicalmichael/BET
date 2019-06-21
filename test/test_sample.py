@@ -1847,9 +1847,9 @@ class Test_sampling_discretization(unittest.TestCase):
 
         def mymodel(input_values):
             try:
-                return 2 * input_values[:, np.arange(dim) % self.dim1]
+                return 2 * input_values[:, np.arange(self.dim2) % self.dim1]
             except IndexError:  # handle 1-d arrays (for reference vals)
-                return 2 * input_values[np.arange(dim) % self.dim1]
+                return 2 * input_values[np.arange(self.dim2) % self.dim1]
 
         D.set_model(mymodel)
         D.set_initial()  # uniform [0,1]
@@ -1899,9 +1899,9 @@ class Test_sampling_discretization(unittest.TestCase):
 
         def mymodel(input_values):
             try:
-                return 2 * input_values[:, np.arange(dim) % self.dim1]
+                return 2 * input_values[:, np.arange(self.dim2) % self.dim1]
             except IndexError:  # handle 1-d arrays (for reference vals)
-                return 2 * input_values[np.arange(dim) % self.dim1]
+                return 2 * input_values[np.arange(self.dim2) % self.dim1]
 
         D.set_model(mymodel)
         D.set_initial(dist.uniform(loc=[0] * self.dim1,
