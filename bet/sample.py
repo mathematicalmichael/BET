@@ -2736,13 +2736,14 @@ class discretization(object):
                 raise dim_not_matching("dimension of values incorrect")
         else:
             raise AttributeError("Wrong Type: Should be sample_set_base type")
-        if self._output_sample_set._values_local is not None:
-            num = self._output_sample_set._values_local.shape[1]
-            if output_probability_set._values is not None:
-                try:
-                    self.set_io_ptr(globalize=False)
-                except dim_not_matching:  # handle data-driven case
-                    self._io_ptr_local = np.arange(num)
+        if self._output_sample_set is not None:
+            if self._output_sample_set._values_local is not None:
+                num = self._output_sample_set._values_local.shape[1]
+                if output_probability_set._values is not None:
+                    try:
+                        self.set_io_ptr(globalize=False)
+                    except dim_not_matching:  # handle data-driven case
+                        self._io_ptr_local = np.arange(num)
 
     def get_emulated_output_sample_set(self):
         """
@@ -2780,9 +2781,10 @@ class discretization(object):
                 raise dim_not_matching("dimension of values incorrect")
         else:
             raise AttributeError("Wrong Type: Should be sample_set_base type")
-        if self._output_sample_set._values_local is not None:
-            if emulated_output_sample_set._values is not None:
-                self.set_emulated_oo_ptr(globalize=False)
+        if self._output_sample_set is not None:
+            if self._output_sample_set._values_local is not None:
+                if emulated_output_sample_set._values is not None:
+                    self.set_emulated_oo_ptr(globalize=False)
 
     def get_emulated_input_sample_set(self):
         """
@@ -3197,6 +3199,7 @@ class discretization(object):
         self._setup[self._iteration]['std'] = self._setup[it - 1]['std']
         self._setup[self._iteration]['col'] = self._setup[it - 1]['col']
         self._setup[self._iteration]['ind'] = self._setup[it - 1]['ind']
+        self._setup[self._iteration]['qoi'] = self._setup[it - 1]['qoi']
         pass
 
     def set_iteration(self, iteration=0):
@@ -3509,6 +3512,14 @@ class discretization(object):
                                 data_std=std, mode=data_driven_mode)
 
         return qoi
+
+    def set_data_driven_mode(self, qoi='SWE', iteration=None):
+        if iteration is None:
+            iteration = self._iteration
+        if qoi in ['SSE', 'MSE', 'SWE']:
+            self._setup[iteration]['qoi'] = qoi
+        else:
+            raise ValueError('Please specify one of SWE/MSE/SWE')
 
     def set_repeated(self, repeat=None, iteration=None):
         r"""
@@ -3891,9 +3902,16 @@ class discretization(object):
         self.set_data(data=data, iteration=iteration, std=std, inds=inds)
         self.data_driven_mode(True)
 
-    def get_setup(self):
-        return self._setup
-
+    def get_setup(self, iteration=None):
+        if iteration is not None:
+            try:
+                return self._setup[iteration]
+            except KeyError:
+                logging.warn("Iteration out of bounds. Returning current.")
+                return self._setup[self._iteration]
+        else:
+            return self._setup[self._iteration]
+    
     def default_setup(self):
         # check for data-driven with
         # if not abs(col): ... do normal. if 1, current inds, if -1, all inds.
@@ -3913,26 +3931,26 @@ class discretization(object):
 
     def set_initial_densities(self):
         r"""
-        Hot mess. fix it up.
+        TK. Hot mess. fix it up.
         """
-        if self._values is None:
+        if self._input_sample_set._values is None:
             raise AttributeError("Missing values.")
         # sample-based approach
-        if self._initial_distribution is not None:
+        if self.get_initial_distribution() is not None:
             self._initial_densities_local = self.initial_pdf(
                 self._values_local)
             self._initial_probabilities_local = \
                 self._initial_densities_local * self._volumes_local
         else:
-            if self._probabilities is not None:
+            if self._input_sample_set._probabilities is not None:
                 # use probabilities and volumes to infer densities
-                den_local = np.divide(self._probabilities_local,
-                                      self._volumes_local)
+                den_local = np.divide(self._input_sample_set._probabilities_local,
+                                      self._input_sample_set._volumes_local)
                 self._initial_densities_local = den_local
             else:
-                vol_sum = np.sum(self._volumes_local)
+                vol_sum = np.sum(self._input_sample_set._volumes_local)
                 vol_sum = comm.allreduce(vol_sum, op=MPI.SUM)
-                prob_local = self._volumes_local / vol_sum  # standard ansatz
+                prob_local = self._input_sample_set._volumes_local / vol_sum  # standard ansatz
                 self._initial_probabilities_local = prob_local
                 self._initial_densities_local = 1.0 / vol_sum
         self._initial_densities = util.get_global_values(

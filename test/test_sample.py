@@ -728,6 +728,31 @@ class Test_discretization_simple(unittest.TestCase):
         """
         test_set = sample.sample_set(dim=self.dim2)
         self.disc.set_output_probability_set(test_set)
+        # test with existing values
+        test_set.set_values(np.random.rand(100, self.dim2))
+        self.disc.set_output_probability_set(test_set)
+        # test with emulated
+        self.disc.set_emulated_output_sample_set(test_set)
+        self.disc.set_output_probability_set(test_set)
+        # test without output samples 
+        self.disc._output_sample_set = None
+        self.disc._emulated_output_sample_set = None
+        self.disc.set_output_probability_set(test_set)
+        # test error-handling
+        self.disc.set_output_sample_set(test_set)
+        test_set = sample.sample_set(dim=self.dim2+1)
+        try:  # catch first possible dim error
+            self.disc.set_output_probability_set(test_set)
+        except sample.dim_not_matching:
+            pass
+        try:  # catch second error
+            test_set = sample.sample_set(dim=self.dim2+1)
+            test_set.set_values(np.random.rand(100, self.dim2+1))
+            test_set.global_to_local()
+            self.disc.set_data_driven()
+            self.disc.set_output_probability_set(test_set)
+        except sample.dim_not_matching:
+            pass
 
     def test_get_output_probability_set(self):
         """
@@ -741,6 +766,18 @@ class Test_discretization_simple(unittest.TestCase):
         """
         test_set = sample.sample_set(dim=self.dim2)
         self.disc.set_emulated_output_sample_set(test_set)
+        # test without output samples 
+        self.disc._output_sample_set = None
+        self.disc._output_probability_set = None
+        self.disc._emulated_output_sample_set = None
+        self.disc.set_emulated_output_sample_set(test_set)
+        # test error-handling
+        self.disc.set_output_sample_set(test_set)
+        test_set = sample.sample_set(dim=self.dim2+1)
+        try:  # catch first possible dim error
+            self.disc.set_emulated_output_sample_set(test_set)
+        except sample.dim_not_matching:
+            pass
 
     def test_get_emulated_output_sample_set(self):
         """
@@ -1835,6 +1872,21 @@ class Test_sampling_discretization(unittest.TestCase):
         for l in [1, 2, 3]:
             D.set_observed(loc=l)  # infer dimension correctly
             D.get_data()
+            assert np.linalg.norm(np.array(D.get_std()) - 1) == 0
+        for s in [1, 2, 3]:
+            D.set_observed(scale=s)  # infer dimension correctly
+            D.get_data()
+            assert np.linalg.norm(np.array(D.get_std()) - s) == 0
+
+    def test_get_std_from_obs(self):
+        """
+        Test inferring std from observed distribution.
+        """
+        D = self.disc
+        for l in [1, 2, 3]:
+            D.set_observed(scale=l)  # infer dimension correctly
+            D._setup[0]['std'] = None
+            assert np.linalg.norm(np.array(D.get_std()) - l) == 0 
 
     def test_set_data(self):
         """
@@ -1854,6 +1906,12 @@ class Test_sampling_discretization(unittest.TestCase):
         # test perturbation in-place
         D._output_probability_set._reference_value += 1
         nptest.assert_array_equal(D.get_data(), ref_val + 1)
+        # test inferring std from data
+        if self.dim2 > 1:
+            D._setup[0]['std'] = None
+            D._setup[0]['obs'] = None
+            assert np.linalg.norm(np.array(D.get_std()) -\
+                                  D.get_data().std()) == 0
 
     def test_set_data_from_observed(self):
         """
@@ -2059,6 +2117,19 @@ class Test_sampling_discretization(unittest.TestCase):
         map_point = D.map_point()
         nptest.assert_array_equal(mud_point, map_point)
 
+    def test_shorthand(self):
+        """
+        Test short-hand versions of methods.
+        """
+        assert self.disc.get_input() == self.disc.get_input_sample_set()
+        assert self.disc.get_output() == self.disc.get_output_sample_set()
+
+    # def test_set_initial_densities(self):
+    #     """
+    #     TK - fix this test.
+    #     """
+    #     self.disc.set_initial_densities()
+
 
 class Test_sampling_one_dim(Test_sampling_discretization):
     def setUp(self):
@@ -2179,3 +2250,34 @@ class Test_sampling_repeated(Test_sampling_discretization):
         D.set_likelihood()
         map_point = D.map_point()
         nptest.assert_array_equal(mud_point, map_point)
+
+    def test_set_data_driven_mode(self):
+        """
+        Test data-driven functional setting.
+        """
+        D = self.disc
+        for mode in ['SSE', 'MSE', 'SWE']:
+            D.set_data_driven_mode(mode)
+            assert D.get_setup()['qoi'] == mode
+        # test error-catching
+        try:
+            D.set_data_driven('FAKE')
+        except ValueError:
+            pass
+        
+    def test_set_data_driven_status(self):
+        """
+        Test data-driven mode options.
+        """
+        D = self.disc
+        D.set_data_driven()
+        assert D.get_setup(0)['col'] is True
+        D.set_data_driven(False)
+        assert D.get_setup(0)['col'] is False
+        # test inheriting mode
+        D.iterate()
+        assert D.get_setup()['col'] is False
+        D.set_data_driven()
+        assert D.get_setup()['col'] is True
+        D.set_data_driven(True, iteration=0)
+        assert D.get_setup(0)['col'] is True
