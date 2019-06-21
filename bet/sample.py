@@ -3097,6 +3097,7 @@ class discretization(object):
             num = self._input_sample_set.check_num()
         self._input_sample_set.generate_samples(num)
         lam_ref = self._input_sample_set._reference_value
+        # set output samples
         y = np.zeros((num, 1))  # temporary vector of correct shape
         v = np.array([])
         for iteration in self._setup.keys():  # map through every model
@@ -3843,8 +3844,7 @@ class discretization(object):
                     else:
                         msg = "Wrong size std (mismatch with data indices)."
                         raise dim_not_matching(msg)
-        
-                
+
         self._setup[iteration]['pre'] = None
         self._setup[self._iteration]['std'] = std
         # return what will result from setting the std this way.

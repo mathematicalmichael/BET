@@ -1912,16 +1912,68 @@ class Test_sampling_discretization(unittest.TestCase):
         D.set_data_from_reference()
         assert np.max(np.abs(D.get_data() - ref_val)) < std * 12
 
-    def test_set_initial(self):
+    def test_set_initial_no_model(self):
         """
-        Test setting initial.
+        Test setting initial without model.
         """
         import scipy.stats as sstats
         D = self.disc
         D.set_initial()
         assert isinstance(D.get_initial().dist,
                           sstats._continuous_distns.uniform_gen)
+        assert D.get_output_values().size == 0
+        # test that re-setting initial works as expected (deletes output
+        # values)
+        D.set_initial(dist.norm)
+        assert D.get_output_values().size == 0
+        assert isinstance(D.get_initial().dist,
+                          sstats._continuous_distns.norm_gen)
+        D.set_initial(dist.norm(loc=np.zeros(self.dim1)))
+        assert D.get_output_values().size == 0
+        assert isinstance(D.get_initial().dist,
+                          sstats._continuous_distns.norm_gen)
+        D.get_input().set_reference_value(np.ones(self.dim1))
+        D.set_initial(dist.norm(loc=np.zeros(self.dim1)))
+        assert D.get_output_values().size == 0
+        # test that this syntax works
         D.get_initial_distribution()
+
+    def test_set_initial_with_model(self):
+        """
+        Test setting initial with model.
+        """
+        import scipy.stats as sstats
+        D = self.disc
+        # set model
+        for dim in range(1, 5):
+            self.dim2 = dim
+
+            def mymodel(input_values):
+                try:
+                    return 2 * input_values[:, np.arange(dim) % self.dim1]
+                except IndexError:  # handle 1-d arrays (for reference vals)
+                    return 2 * input_values[np.arange(dim) % self.dim1]
+            D.set_model(mymodel)
+
+            D.set_initial()
+            assert isinstance(D.get_initial_distribution().dist,
+                              sstats._continuous_distns.uniform_gen)
+            assert D.get_output_values().shape == (self.num, self.dim2)
+            assert D.get_output_values().shape == (self.num, dim)
+            # test that re-setting initial works as expected (deletes output
+            # values)
+            D.set_initial(dist.norm)
+            assert D.get_output_values().size == self.num * dim
+            assert isinstance(D.get_initial().dist,
+                              sstats._continuous_distns.norm_gen)
+            D.set_initial(dist.norm(loc=np.zeros(self.dim1)))
+            assert D.get_output_values().shape == (self.num, dim)
+            assert isinstance(D.get_initial().dist,
+                              sstats._continuous_distns.norm_gen)
+            D.get_input().set_reference_value(np.ones(self.dim1))
+            D.set_initial(dist.norm(loc=np.zeros(self.dim1)))
+            assert D.get_output_values().shape == (self.num, dim)
+            assert D.get_output_values().size == self.num * dim
 
     def test_set_observed(self):
         """
@@ -1932,6 +1984,14 @@ class Test_sampling_discretization(unittest.TestCase):
         D.set_observed(dist.norm(loc=np.arange(self.dim2)))
         assert isinstance(D.get_observed().dist,
                           sstats._continuous_distns.norm_gen)
+        try:
+            D.set_output_probability_set(None)
+        except AttributeError:
+            pass
+        D._output_probability_set = None
+        D.set_observed(dist.uniform(loc=np.arange(self.dim2)))
+        assert isinstance(D.get_observed().dist,
+                          sstats._continuous_distns.uniform_gen)
 
     def test_set_predicted(self):
         """
@@ -1943,7 +2003,10 @@ class Test_sampling_discretization(unittest.TestCase):
         num = 21
 
         def mymodel(input_values):
-            return 2 * input_values
+            try:
+                return 2 * input_values[:, np.arange(self.dim2) % self.dim1]
+            except IndexError:  # handle 1-d arrays (for reference vals)
+                return 2 * input_values[np.arange(self.dim2) % self.dim1]
         D.set_model(mymodel)
         D.set_initial(num=num)
         assert D.check_nums() == num
@@ -1965,7 +2028,7 @@ class Test_sampling_discretization(unittest.TestCase):
         vec = np.random.rand(self.dim2)
         D.set_std(vec)
         nptest.assert_array_equal(D.get_std(), vec)
-        vec = np.random.rand(self.dim2-1)
+        vec = np.random.rand(self.dim2 - 1)
         try:  # should throw dim_not_matching error.
             D.set_std(vec)
             assert len(D.get_std()) == self.dim2
@@ -1979,7 +2042,10 @@ class Test_sampling_discretization(unittest.TestCase):
         D = self.disc
 
         def mymodel(input_values):
-            return 2 * input_values[:, :self.dim2]
+            try:
+                return 2 * input_values[:, np.arange(self.dim2) % self.dim1]
+            except IndexError:  # handle 1-d arrays (for reference vals)
+                return 2 * input_values[np.arange(self.dim2) % self.dim1]
         D.set_model(mymodel)
         D.set_initial(dist.uniform(loc=[0] * self.dim1,
                                    scale=[1] * self.dim1))  # uniform [0,1]
@@ -2045,8 +2111,10 @@ class Test_sampling_repeated(Test_sampling_discretization):
         D = self.disc
 
         def mymodel(input_values):
-            inds = np.arange(self.dim2) % self.dim1  # repeated data
-            return 2 * input_values[:, inds]
+            try:
+                return 2 * input_values[:, np.arange(self.dim2) % self.dim1]
+            except IndexError:  # handle 1-d arrays (for reference vals)
+                return 2 * input_values[np.arange(self.dim2) % self.dim1]
 
         D.set_model(mymodel)
         D.set_initial(dist.uniform(loc=[0] * self.dim1,
@@ -2073,8 +2141,10 @@ class Test_sampling_repeated(Test_sampling_discretization):
         num = 21
 
         def mymodel(input_values):
-            inds = np.arange(self.dim2) % self.dim1  # repeated data
-            return 2 * input_values[:, inds]
+            try:
+                return 2 * input_values[:, np.arange(self.dim2) % self.dim1]
+            except IndexError:  # handle 1-d arrays (for reference vals)
+                return 2 * input_values[np.arange(self.dim2) % self.dim1]
         D.set_model(mymodel)
         D.set_initial(num=num)
         assert D.check_nums() == num
@@ -2087,12 +2157,15 @@ class Test_sampling_repeated(Test_sampling_discretization):
     def test_likelihood(self):
         """
         Test likelihood function
+        D = self.disc
         """
         D = self.disc
 
         def mymodel(input_values):
-            inds = np.arange(self.dim2) % self.dim1  # repeated data
-            return 3 * input_values[:, inds]
+            try:
+                return 2 * input_values[:, np.arange(self.dim2) % self.dim1]
+            except IndexError:  # handle 1-d arrays (for reference vals)
+                return 2 * input_values[np.arange(self.dim2) % self.dim1]
         D.set_model(mymodel)
         D.set_initial(dist.norm(loc=[0] * self.dim1,
                                 scale=[1] * self.dim1))  # uniform [0,1]
