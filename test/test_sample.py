@@ -734,20 +734,20 @@ class Test_discretization_simple(unittest.TestCase):
         # test with emulated
         self.disc.set_emulated_output_sample_set(test_set)
         self.disc.set_output_probability_set(test_set)
-        # test without output samples 
+        # test without output samples
         self.disc._output_sample_set = None
         self.disc._emulated_output_sample_set = None
         self.disc.set_output_probability_set(test_set)
         # test error-handling
         self.disc.set_output_sample_set(test_set)
-        test_set = sample.sample_set(dim=self.dim2+1)
+        test_set = sample.sample_set(dim=self.dim2 + 1)
         try:  # catch first possible dim error
             self.disc.set_output_probability_set(test_set)
         except sample.dim_not_matching:
             pass
         try:  # catch second error
-            test_set = sample.sample_set(dim=self.dim2+1)
-            test_set.set_values(np.random.rand(100, self.dim2+1))
+            test_set = sample.sample_set(dim=self.dim2 + 1)
+            test_set.set_values(np.random.rand(100, self.dim2 + 1))
             test_set.global_to_local()
             self.disc.set_data_driven()
             self.disc.set_output_probability_set(test_set)
@@ -766,14 +766,14 @@ class Test_discretization_simple(unittest.TestCase):
         """
         test_set = sample.sample_set(dim=self.dim2)
         self.disc.set_emulated_output_sample_set(test_set)
-        # test without output samples 
+        # test without output samples
         self.disc._output_sample_set = None
         self.disc._output_probability_set = None
         self.disc._emulated_output_sample_set = None
         self.disc.set_emulated_output_sample_set(test_set)
         # test error-handling
         self.disc.set_output_sample_set(test_set)
-        test_set = sample.sample_set(dim=self.dim2+1)
+        test_set = sample.sample_set(dim=self.dim2 + 1)
         try:  # catch first possible dim error
             self.disc.set_emulated_output_sample_set(test_set)
         except sample.dim_not_matching:
@@ -1886,7 +1886,7 @@ class Test_sampling_discretization(unittest.TestCase):
         for l in [1, 2, 3]:
             D.set_observed(scale=l)  # infer dimension correctly
             D._setup[0]['std'] = None
-            assert np.linalg.norm(np.array(D.get_std()) - l) == 0 
+            assert np.linalg.norm(np.array(D.get_std()) - l) == 0
 
     def test_set_data(self):
         """
@@ -1910,7 +1910,7 @@ class Test_sampling_discretization(unittest.TestCase):
         if self.dim2 > 1:
             D._setup[0]['std'] = None
             D._setup[0]['obs'] = None
-            assert np.linalg.norm(np.array(D.get_std()) -\
+            assert np.linalg.norm(np.array(D.get_std()) -
                                   D.get_data().std()) == 0
 
     def test_set_data_from_observed(self):
@@ -2264,7 +2264,7 @@ class Test_sampling_repeated(Test_sampling_discretization):
             D.set_data_driven('FAKE')
         except ValueError:
             pass
-        
+
     def test_set_data_driven_status(self):
         """
         Test data-driven mode options.

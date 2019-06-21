@@ -3911,7 +3911,7 @@ class discretization(object):
                 return self._setup[self._iteration]
         else:
             return self._setup[self._iteration]
-    
+
     def default_setup(self):
         # check for data-driven with
         # if not abs(col): ... do normal. if 1, current inds, if -1, all inds.
