@@ -119,7 +119,9 @@ class Test_sample_set(unittest.TestCase):
 
         if comm.size > 1 and not globalize:
             local_file_name = os.path.os.path.join(os.path.dirname(file_name),
-                                                   "proc{}_{}".format(comm.rank, os.path.basename(file_name)))
+                                                   "proc{}_{}".
+                                                   format(comm.rank, os.path.
+                                                          basename(file_name)))
         else:
             local_file_name = file_name
 
@@ -150,7 +152,9 @@ class Test_sample_set(unittest.TestCase):
 
         if comm.size > 1 and not globalize:
             local_file_name = os.path.os.path.join(os.path.dirname(file_name),
-                                                   "proc{}_{}".format(comm.rank, os.path.basename(file_name)))
+                                                   "proc{}_{}".
+                                                   format(comm.rank, os.path.
+                                                          basename(file_name)))
         else:
             local_file_name = file_name
 
@@ -211,7 +215,8 @@ class Test_sample_set(unittest.TestCase):
         nptest.assert_array_equal(self.sam_set._right,
                                   np.repeat([self.domain[:, 1]], self.num, 0))
         nptest.assert_array_equal(self.sam_set._width,
-                                  np.repeat([self.domain[:, 1] - self.domain[:, 0]], self.num, 0))
+                                  np.repeat([self.domain[:, 1] -
+                                             self.domain[:, 0]], self.num, 0))
         o_num = 35
         self.sam_set.update_bounds(o_num)
         nptest.assert_array_equal(self.sam_set._left,
@@ -219,7 +224,8 @@ class Test_sample_set(unittest.TestCase):
         nptest.assert_array_equal(self.sam_set._right,
                                   np.repeat([self.domain[:, 1]], o_num, 0))
         nptest.assert_array_equal(self.sam_set._width,
-                                  np.repeat([self.domain[:, 1] - self.domain[:, 0]], o_num, 0))
+                                  np.repeat([self.domain[:, 1] -
+                                             self.domain[:, 0]], o_num, 0))
 
     def test_update_bounds_local(self):
         """
@@ -234,8 +240,8 @@ class Test_sample_set(unittest.TestCase):
         nptest.assert_array_equal(self.sam_set._right_local,
                                   np.repeat([self.domain[:, 1]], local_size, 0))
         nptest.assert_array_equal(self.sam_set._width_local,
-                                  np.repeat([self.domain[:, 1] - self.domain[:, 0]], local_size,
-                                            0))
+                                  np.repeat([self.domain[:, 1] -
+                                             self.domain[:, 0]], local_size, 0))
         o_num = 35
         self.sam_set.update_bounds_local(o_num)
         nptest.assert_array_equal(self.sam_set._left_local,
@@ -243,7 +249,8 @@ class Test_sample_set(unittest.TestCase):
         nptest.assert_array_equal(self.sam_set._right_local,
                                   np.repeat([self.domain[:, 1]], o_num, 0))
         nptest.assert_array_equal(self.sam_set._width_local,
-                                  np.repeat([self.domain[:, 1] - self.domain[:, 0]], o_num, 0))
+                                  np.repeat([self.domain[:, 1] -
+                                             self.domain[:, 0]], o_num, 0))
 
     def test_check_dim(self):
         """
@@ -302,7 +309,8 @@ class Test_sample_set(unittest.TestCase):
         local_size = self.sam_set.get_values_local().shape[0]
         self.sam_set.append_values_local(new_values)
         nptest.assert_array_equal(util.fix_dimensions_data(new_values),
-                                  self.sam_set.get_values_local()[local_size::, :])
+                                  self.sam_set.
+                                  get_values_local()[local_size::, :])
 
     def test_get_dim(self):
         """
@@ -408,14 +416,16 @@ class Test_sample_set(unittest.TestCase):
                 current_array = getattr(self.sam_set, array_name + "_local")
                 if current_array is not None:
                     self.assertGreater(getattr(self.sam_set,
-                                               array_name).shape[0], current_array.shape[0])
+                                               array_name).shape[0],
+                                       current_array.shape[0])
                     local_size = current_array.shape[0]
                     num = comm.allreduce(local_size, op=MPI.SUM)
                     self.assertEqual(num, self.num)
                     current_array_global = util.get_global_values(
                         current_array)
                     nptest.assert_array_equal(getattr(self.sam_set,
-                                                      array_name), current_array_global)
+                                                      array_name),
+                                              current_array_global)
                     if array_name is "_values":
                         assert self.sam_set.shape_local() == (local_size,
                                                               self.dim)
@@ -424,7 +434,8 @@ class Test_sample_set(unittest.TestCase):
                 current_array = getattr(self.sam_set, array_name + "_local")
                 if current_array is not None:
                     nptest.assert_array_equal(getattr(self.sam_set,
-                                                      array_name), current_array)
+                                                      array_name),
+                                              current_array)
                     if array_name is "_values":
                         assert self.sam_set.shape_local() == (self.num,
                                                               self.dim)
@@ -617,9 +628,11 @@ class Test_discretization_simple(unittest.TestCase):
         """
         cnum = int(0.5 * self.num)
         disc_clipped = self.disc.clip(cnum)
-        nptest.assert_array_equal(self.disc._input_sample_set._values[0:cnum, :],
+        nptest.assert_array_equal(self.disc._input_sample_set.
+                                  _values[0:cnum, :],
                                   disc_clipped._input_sample_set._values)
-        nptest.assert_array_equal(self.disc._output_sample_set._values[0:cnum, :],
+        nptest.assert_array_equal(self.disc._output_sample_set.
+                                  _values[0:cnum, :],
                                   disc_clipped._output_sample_set._values)
 
     def test_slicing(self):
@@ -632,12 +645,16 @@ class Test_discretization_simple(unittest.TestCase):
             np.ones((self.num, self.dim2, self.dim1)))
 
         disc_new = self.disc.choose_inputs_outputs(inputs=[0, 2], outputs=[0])
-        nptest.assert_array_equal(self.disc._input_sample_set._values[:, [0, 2]],
+        nptest.assert_array_equal(self.disc._input_sample_set.
+                                  _values[:, [0, 2]],
                                   disc_new._input_sample_set._values)
-        nptest.assert_array_equal(self.disc._output_sample_set._values[:, [0]],
+        nptest.assert_array_equal(self.disc._output_sample_set.
+                                  _values[:, [0]],
                                   disc_new._output_sample_set._values)
-        nptest.assert_array_equal(self.disc._output_sample_set._error_estimates[:, [0]],
-                                  disc_new._output_sample_set._error_estimates)
+        nptest.assert_array_equal(self.disc._output_sample_set.
+                                  _error_estimates[:, [0]],
+                                  disc_new._output_sample_set.
+                                  _error_estimates)
         self.assertEqual(
             disc_new._input_sample_set._jacobians.shape, (self.num, 1, 2))
 
@@ -795,7 +812,9 @@ class Test_discretization_simple(unittest.TestCase):
         comm.barrier()
         if comm.size > 1 and not globalize:
             local_file_name = os.path.os.path.join(os.path.dirname(file_name),
-                                                   "proc{}_{}".format(comm.rank, os.path.basename(file_name)))
+                                                   "proc{}_{}".
+                                                   format(comm.rank, os.path.
+                                                          basename(file_name)))
         else:
             local_file_name = file_name
 
@@ -827,7 +846,9 @@ class Test_discretization_simple(unittest.TestCase):
         comm.barrier()
         if comm.size > 1 and not globalize:
             local_file_name = os.path.os.path.join(os.path.dirname(file_name),
-                                                   "proc{}_{}".format(comm.rank, os.path.basename(file_name)))
+                                                   "proc{}_{}".
+                                                   format(comm.rank, os.path.
+                                                          basename(file_name)))
         else:
             local_file_name = file_name
 
@@ -908,7 +929,8 @@ class Test_discretization_simple(unittest.TestCase):
         emulated_samples = s_set.copy()
         emulated_samples.update_bounds_local(1001)
         emulated_samples.set_values_local(emulated_samples._width_local
-                                          * np.random.random((1001, emulated_samples.get_dim())) +
+                                          * np.random.random((1001,
+                                                              emulated_samples.get_dim())) +
                                           emulated_samples._left_local)
 
         self.disc.set_input_sample_set(s_set)
@@ -956,7 +978,8 @@ class Test_discretization_simple(unittest.TestCase):
         emulated_samples = s_set.copy()
         emulated_samples.update_bounds_local(1001)
         emulated_samples.set_values_local(emulated_samples._width_local
-                                          * np.random.random((1001, emulated_samples.get_dim())) +
+                                          * np.random.random((1001,
+                                                              emulated_samples.get_dim())) +
                                           emulated_samples._left_local)
 
         self.disc.set_output_sample_set(s_set)
@@ -1059,7 +1082,8 @@ class TestEstimateVolumeEmulated(unittest.TestCase):
         emulated_samples = self.s_set.copy()
         emulated_samples.update_bounds_local(1001)
         emulated_samples.set_values_local(emulated_samples._width_local
-                                          * np.random.random((1001, emulated_samples.get_dim())) +
+                                          * np.random.random((1001,
+                                                              emulated_samples.get_dim())) +
                                           emulated_samples._left_local)
         self.s_set.estimate_volume_emulated(emulated_samples)
         self.lam_vol = self.s_set._volumes
@@ -1348,7 +1372,9 @@ class Test_rectangle_sample_set(unittest.TestCase):
 
         if comm.size > 1 and not globalize:
             local_file_name = os.path.os.path.join(os.path.dirname(file_name),
-                                                   "proc{}_{}".format(comm.rank, os.path.basename(file_name)))
+                                                   "proc{}_{}".
+                                                   format(comm.rank, os.path.
+                                                          basename(file_name)))
         else:
             local_file_name = file_name
 
@@ -1378,7 +1404,9 @@ class Test_rectangle_sample_set(unittest.TestCase):
 
         if comm.size > 1 and not globalize:
             local_file_name = os.path.os.path.join(os.path.dirname(file_name),
-                                                   "proc{}_{}".format(comm.rank, os.path.basename(file_name)))
+                                                   "proc{}_{}".
+                                                   format(comm.rank, os.path.
+                                                          basename(file_name)))
         else:
             local_file_name = file_name
 
@@ -1474,7 +1502,9 @@ class Test_ball_sample_set(unittest.TestCase):
         file_name = os.path.join(local_path, 'testfile.mat')
         if comm.size > 1 and not globalize:
             local_file_name = os.path.os.path.join(os.path.dirname(file_name),
-                                                   "proc{}_{}".format(comm.rank, os.path.basename(file_name)))
+                                                   "proc{}_{}".
+                                                   format(comm.rank, os.path.
+                                                          basename(file_name)))
         else:
             local_file_name = file_name
 
@@ -1510,7 +1540,9 @@ class Test_ball_sample_set(unittest.TestCase):
 
         if comm.size > 1 and not globalize:
             local_file_name = os.path.os.path.join(os.path.dirname(file_name),
-                                                   "proc{}_{}".format(comm.rank, os.path.basename(file_name)))
+                                                   "proc{}_{}".
+                                                   format(comm.rank, os.path.
+                                                          basename(file_name)))
         else:
             local_file_name = file_name
 
@@ -1606,7 +1638,9 @@ class Test_cartesian_sample_set(unittest.TestCase):
         file_name = os.path.join(local_path, 'testfile.mat')
         if comm.size > 1 and not globalize:
             local_file_name = os.path.os.path.join(os.path.dirname(file_name),
-                                                   "proc{}_{}".format(comm.rank, os.path.basename(file_name)))
+                                                   "proc{}_{}".
+                                                   format(comm.rank, os.path.
+                                                          basename(file_name)))
         else:
             local_file_name = file_name
 
@@ -1617,7 +1651,9 @@ class Test_cartesian_sample_set(unittest.TestCase):
 
         if comm.size > 1 and not globalize:
             local_file_name = os.path.os.path.join(os.path.dirname(file_name),
-                                                   "proc{}_{}".format(comm.rank, os.path.basename(file_name)))
+                                                   "proc{}_{}".
+                                                   format(comm.rank, os.path.
+                                                          basename(file_name)))
         else:
             local_file_name = file_name
 
@@ -1647,7 +1683,9 @@ class Test_cartesian_sample_set(unittest.TestCase):
 
         if comm.size > 1 and not globalize:
             local_file_name = os.path.os.path.join(os.path.dirname(file_name),
-                                                   "proc{}_{}".format(comm.rank, os.path.basename(file_name)))
+                                                   "proc{}_{}".
+                                                   format(comm.rank, os.path.
+                                                          basename(file_name)))
         else:
             local_file_name = file_name
 
@@ -1778,15 +1816,20 @@ class Test_sampling_discretization(unittest.TestCase):
             nptest.assert_array_equal(np.array(set_inds(n, (i, n, 2))),
                                       np.arange(n)[np.arange(i, n, 2)])
             nptest.assert_array_equal(np.array(set_inds(n, (i, n, 0.2))),
-                                      np.arange(n)[np.arange(i, n, int(0.2 * n))])
+                                      np.arange(n)[np.arange(i, n,
+                                                             int(0.2 * n))])
             nptest.assert_array_equal(np.array(set_inds(n, (0, 0.2, i))),
-                                      np.arange(n)[np.arange(0, int(0.2 * n), i)])
+                                      np.arange(n)[np.arange(0,
+                                                             int(0.2 * n), i)])
             nptest.assert_array_equal(np.array(set_inds(n, (1, 0.2, i))),
-                                      np.arange(n)[np.arange(1, int(0.2 * n), i)])
+                                      np.arange(n)[np.arange(1,
+                                                             int(0.2 * n), i)])
             nptest.assert_array_equal(np.array(set_inds(n, (0.2, 1.0, 1))),
-                                      np.arange(n)[np.arange(int(0.2 * n), n, 1)])
+                                      np.arange(n)[np.arange(int(0.2 * n),
+                                                             n, 1)])
             nptest.assert_array_equal(np.array(set_inds(n, (0.2, n, 2))),
-                                      np.arange(n)[np.arange(int(0.2 * n), n, 2)])
+                                      np.arange(n)[np.arange(int(0.2 * n),
+                                                             n, 2)])
 
     def test_empty_problem(self):
         """
@@ -1795,8 +1838,11 @@ class Test_sampling_discretization(unittest.TestCase):
         D = self.disc
 
         def mymodel(input_values):
-            inds = np.arange(self.dim2) % self.dim1  # repeated data
-            return 2 * input_values[:, inds]
+            try:
+                return 2 * input_values[:, np.arange(dim) % self.dim1]
+            except IndexError:  # handle 1-d arrays (for reference vals)
+                return 2 * input_values[np.arange(dim) % self.dim1]
+
         D.set_model(mymodel)
         D.set_initial()  # uniform [0,1]
         # D.set_observed(dist.norm())  # set_output_probability_set [TK - fix]
@@ -1839,17 +1885,22 @@ class Test_sampling_discretization(unittest.TestCase):
 
     def test_solve_problem(self):
         """
-        Solve inverse problem (input dim = output dim)
+        Solve inverse problem (input dim == output dim)
         """
         D = self.disc
 
         def mymodel(input_values):
-            return 2 * input_values[:, :self.dim2]
+            try:
+                return 2 * input_values[:, np.arange(dim) % self.dim1]
+            except IndexError:  # handle 1-d arrays (for reference vals)
+                return 2 * input_values[np.arange(dim) % self.dim1]
+
         D.set_model(mymodel)
         D.set_initial(dist.uniform(loc=[0] * self.dim1,
                                    scale=[1] * self.dim1))  # uniform [0,1]
+        # set_output_probability_set
         D.set_observed(dist.uniform(loc=[0.5] * self.dim2,
-                                    scale=[1] * self.dim2))  # set_output_probability_set
+                                    scale=[1] * self.dim2))
         D.set_predicted(dist.uniform(loc=[0] * self.dim2,
                                      scale=[2] * self.dim2))
 
@@ -2013,11 +2064,12 @@ class Test_sampling_discretization(unittest.TestCase):
                     return 2 * input_values[:, np.arange(dim) % self.dim1]
                 except IndexError:  # handle 1-d arrays (for reference vals)
                     return 2 * input_values[np.arange(dim) % self.dim1]
-            D.set_model(mymodel)
 
+            D.set_model(mymodel)
             D.set_initial()
             assert isinstance(D.get_initial_distribution().dist,
                               sstats._continuous_distns.uniform_gen)
+            # set_output_probability_set
             assert D.get_output_values().shape == (self.num, self.dim2)
             assert D.get_output_values().shape == (self.num, dim)
             # test that re-setting initial works as expected (deletes output
@@ -2067,6 +2119,7 @@ class Test_sampling_discretization(unittest.TestCase):
                 return 2 * input_values[:, np.arange(self.dim2) % self.dim1]
             except IndexError:  # handle 1-d arrays (for reference vals)
                 return 2 * input_values[np.arange(self.dim2) % self.dim1]
+
         D.set_model(mymodel)
         D.set_initial(num=num)
         assert D.check_nums() == num
@@ -2106,11 +2159,12 @@ class Test_sampling_discretization(unittest.TestCase):
                 return 2 * input_values[:, np.arange(self.dim2) % self.dim1]
             except IndexError:  # handle 1-d arrays (for reference vals)
                 return 2 * input_values[np.arange(self.dim2) % self.dim1]
+
         D.set_model(mymodel)
         D.set_initial(dist.uniform(loc=[0] * self.dim1,
                                    scale=[1] * self.dim1))  # uniform [0,1]
         D.set_observed(dist.norm(loc=[0.5] * self.dim2,
-                                 scale=[0.1] * self.dim2))  # set_output_probability_set
+                                 scale=[0.1] * self.dim2))
         D.set_predicted(dist.uniform(loc=[0] * self.dim2,
                                      scale=[2] * self.dim2))
         # D.set_data([0.5])
@@ -2218,6 +2272,7 @@ class Test_sampling_repeated(Test_sampling_discretization):
                 return 2 * input_values[:, np.arange(self.dim2) % self.dim1]
             except IndexError:  # handle 1-d arrays (for reference vals)
                 return 2 * input_values[np.arange(self.dim2) % self.dim1]
+
         D.set_model(mymodel)
         D.set_initial(num=num)
         assert D.check_nums() == num
@@ -2234,11 +2289,12 @@ class Test_sampling_repeated(Test_sampling_discretization):
         """
         D = self.disc
 
-        def mymodel(input_values):
+        def mymodel(input_valu es):
             try:
                 return 2 * input_values[:, np.arange(self.dim2) % self.dim1]
             except IndexError:  # handle 1-d arrays (for reference vals)
                 return 2 * input_values[np.arange(self.dim2) % self.dim1]
+
         D.set_model(mymodel)
         D.set_initial(dist.norm(loc=[0] * self.dim1,
                                 scale=[1] * self.dim1))  # uniform [0,1]
