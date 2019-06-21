@@ -1970,6 +1970,8 @@ class Test_sampling_discretization(unittest.TestCase):
         D.set_data_from_reference()
         assert np.max(np.abs(D.get_data() - ref_val)) < std * 12
 
+        # TK - add more tests.
+
     def test_set_initial_no_model(self):
         """
         Test setting initial without model.
