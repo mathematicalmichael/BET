@@ -236,12 +236,15 @@ class Test_sample_set(unittest.TestCase):
         self.sam_set.update_bounds_local()
         local_size = self.sam_set.get_values_local().shape[0]
         nptest.assert_array_equal(self.sam_set._left_local,
-                                  np.repeat([self.domain[:, 0]], local_size, 0))
+                                  np.repeat([self.domain[:, 0]],
+                                            local_size, 0))
         nptest.assert_array_equal(self.sam_set._right_local,
-                                  np.repeat([self.domain[:, 1]], local_size, 0))
+                                  np.repeat([self.domain[:, 1]],
+                                            local_size, 0))
         nptest.assert_array_equal(self.sam_set._width_local,
                                   np.repeat([self.domain[:, 1] -
-                                             self.domain[:, 0]], local_size, 0))
+                                             self.domain[:, 0]],
+                                            local_size, 0))
         o_num = 35
         self.sam_set.update_bounds_local(o_num)
         nptest.assert_array_equal(self.sam_set._left_local,
@@ -613,7 +616,8 @@ class Test_discretization_simple(unittest.TestCase):
         self.output_probability_set.set_values(values3)
         self.disc = sample.discretization(input_sample_set=self.input_set,
                                           output_sample_set=self.output_set,
-                                          output_probability_set=self.output_probability_set)
+                                          output_probability_set=self.
+                                          output_probability_set)
 
     def test_check_nums(self):
         """
@@ -930,7 +934,8 @@ class Test_discretization_simple(unittest.TestCase):
         emulated_samples.update_bounds_local(1001)
         emulated_samples.set_values_local(emulated_samples._width_local
                                           * np.random.random((1001,
-                                                              emulated_samples.get_dim())) +
+                                                              emulated_samples.
+                                                              get_dim())) +
                                           emulated_samples._left_local)
 
         self.disc.set_input_sample_set(s_set)
@@ -979,7 +984,8 @@ class Test_discretization_simple(unittest.TestCase):
         emulated_samples.update_bounds_local(1001)
         emulated_samples.set_values_local(emulated_samples._width_local
                                           * np.random.random((1001,
-                                                              emulated_samples.get_dim())) +
+                                                              emulated_samples.
+                                                              get_dim())) +
                                           emulated_samples._left_local)
 
         self.disc.set_output_sample_set(s_set)
@@ -1083,7 +1089,8 @@ class TestEstimateVolumeEmulated(unittest.TestCase):
         emulated_samples.update_bounds_local(1001)
         emulated_samples.set_values_local(emulated_samples._width_local
                                           * np.random.random((1001,
-                                                              emulated_samples.get_dim())) +
+                                                              emulated_samples.
+                                                              get_dim())) +
                                           emulated_samples._left_local)
         self.s_set.estimate_volume_emulated(emulated_samples)
         self.lam_vol = self.s_set._volumes
@@ -1773,7 +1780,8 @@ class Test_sampling_discretization(unittest.TestCase):
         self.output_probability_set.set_values(values3)
         self.disc = sample.discretization(input_sample_set=self.input_set,
                                           output_sample_set=self.output_set,
-                                          output_probability_set=self.output_probability_set)
+                                          output_probability_set=self.
+                                          output_probability_set)
 
     def test_format_indices(self):
         """
@@ -2289,7 +2297,7 @@ class Test_sampling_repeated(Test_sampling_discretization):
         """
         D = self.disc
 
-        def mymodel(input_valu es):
+        def mymodel(input_values):
             try:
                 return 2 * input_values[:, np.arange(self.dim2) % self.dim1]
             except IndexError:  # handle 1-d arrays (for reference vals)

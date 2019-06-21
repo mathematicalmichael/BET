@@ -72,7 +72,8 @@ def save_sample_set(save_set, file_name,
     if comm.size > 1 and not globalize:
         local_file_name = os.path.join(os.path.dirname(file_name),
                                        "proc{}_{}".format(comm.rank,
-                                                          os.path.basename(file_name)))
+                                                          os.path.
+                                                          basename(file_name)))
     else:
         local_file_name = file_name
 
@@ -303,7 +304,7 @@ class sample_set_base(object):
         self._values = None
         #: :class:`numpy.ndarray` of sample Voronoi volumes of shape (num,)
         self._volumes = None
-        #: :class:`scipy.stats.distributions.rv_frozen` describing probability distribution
+        #: :class:`scipy.stats.distributions.rv_frozen` describing distribution
         self._distribution = None
         #: :class:`numpy.ndarray` of sample densities of shape (num,)
         self._densities = None
@@ -317,7 +318,7 @@ class sample_set_base(object):
         self._error_estimates = None
         #: The sample domain :class:`numpy.ndarray` of shape (dim, 2)
         self._domain = None
-        #: The sample domain before normalization :class:`numpy.ndarray` of shape (dim, 2)
+        #: Sample domain pre-normalization :class:`numpy.ndarray` of shape (dim, 2)
         self._domain_original = None
         #: Bounding box of values, :class:`numpy.ndarray`of shape (dim, 2)
         self._bounding_box = None
@@ -587,8 +588,9 @@ class sample_set_base(object):
         :param values: values to append
         :type values: :class:`numpy.ndarray` of shape (some_num, dim)
         """
-        self._values = np.concatenate((self._values,
-                                       util.fix_dimensions_data(values, self._dim)), 0)
+        self._values = np.concatenate((self._values, util.
+                                       fix_dimensions_data(values_local,
+                                                           self._dim)), 0)
 
     def append_values_local(self, values_local):
         """
@@ -601,8 +603,9 @@ class sample_set_base(object):
         :param values_local: values to append
         :type values_local: :class:`numpy.ndarray` of shape (some_num, dim)
         """
-        self._values_local = np.concatenate((self._values_local,
-                                             util.fix_dimensions_data(values_local, self._dim)), 0)
+        self._values_local = np.concatenate((self._values_local, util.
+                                             fix_dimensions_data(values_local,
+                                                                 self._dim)), 0)
 
     def clip(self, cnum):
         """
@@ -1041,7 +1044,8 @@ class sample_set_base(object):
             int(comm.rank < n_mc_points % comm.size)
         width = self._domain[:, 1] - self._domain[:, 0]
         mc_points = width * np.random.random((n_mc_points_local,
-                                              self._domain.shape[0])) + self._domain[:, 0]
+                                              self._domain.shape[0])) +
+        self._domain[:, 0]
         (_, emulate_ptr) = self.query(mc_points)
         vol = np.zeros((num,))
         for i in range(num):
@@ -1371,7 +1375,8 @@ def save_discretization(save_disc, file_name, discretization_name=None,
     if comm.size > 1 and not globalize:
         local_file_name = os.path.join(os.path.dirname(file_name),
                                        "proc{}_{}".format(comm.rank,
-                                                          os.path.basename(file_name)))
+                                                          os.path.
+                                                          basename(file_name)))
     else:
         local_file_name = file_name
 
@@ -1449,11 +1454,11 @@ def load_discretization_parallel(file_name, discretization_name=None):
         if discretization_name is None:
             discretization_name = 'default'
 
-        input_sample_set = load_sample_set(file_name,
-                                           discretization_name + '_input_sample_set')
+        input_sample_set = load_sample_set(file_name, discretization_name +
+                                           '_input_sample_set')
 
-        output_sample_set = load_sample_set(file_name,
-                                            discretization_name + '_output_sample_set')
+        output_sample_set = load_sample_set(file_name, discretization_name +
+                                            '_output_sample_set')
 
         loaded_disc = discretization(input_sample_set, output_sample_set)
 
@@ -2420,11 +2425,13 @@ class discretization(object):
     #: List of attribute names for attributes which are vectors or 1D
     #: :class:`numpy.ndarray`
     vector_names = ['_io_ptr', '_io_ptr_local', '_emulated_ii_ptr',
-                    '_emulated_ii_ptr_local', '_emulated_oo_ptr', '_emulated_oo_ptr_local']
+                    '_emulated_ii_ptr_local', '_emulated_oo_ptr',
+                    '_emulated_oo_ptr_local']
     #: List of attribute names for attributes that are
     #: :class:`sample.sample_set_base`
     sample_set_names = ['_input_sample_set', '_output_sample_set',
-                        '_emulated_input_sample_set', '_emulated_output_sample_set',
+                        '_emulated_input_sample_set',
+                        '_emulated_output_sample_set',
                         '_output_probability_set']
 
     def __init__(self, input_sample_set, output_sample_set,
@@ -2889,10 +2896,10 @@ class discretization(object):
         """
         mi = self._input_sample_set.merge(disc._input_sample_set)
         mo = self._output_sample_set.merge(disc._output_sample_set)
-        mei = self._emulated_input_sample_set.merge(disc.
-                                                    _emulated_input_sample_set)
-        meo = self._emulated_output_sample_set.merge(disc.
-                                                     _emulated_output_sample_set)
+        mei = self._emulated_input_sample_set.
+        merge(disc._emulated_input_sample_set)
+        meo = self._emulated_output_sample_set.
+        merge(disc._emulated_output_sample_set)
 
         return discretization(input_sample_set=mi,
                               output_sample_set=mo,
@@ -3079,7 +3086,8 @@ class discretization(object):
             self._output_sample_set.set_distribution(dist, *args, **kwds)
             if iteration is None:
                 iteration = self._iteration
-            self._setup[iteration]['pre'] = self._output_sample_set.get_distribution()
+            self._setup[iteration]['pre'] = self._output_sample_set.
+            get_distribution()
         else:
             return self.compute_pushforward(dist, iteration, *args, **kwds)
 
@@ -3637,7 +3645,8 @@ class discretization(object):
 
     def get_data_indices(self, iteration=None):
         r"""
-        Reads in value from `setup` and converts it to indices for `output_probability_set`.
+        Reads in value from `setup` and converts it to the proper
+        indices for `output_probability_set`.
         """
         if iteration is None:
             iteration = self._iteration
@@ -3656,8 +3665,9 @@ class discretization(object):
 
     def get_output_indices(self, iteration=None):
         r"""
-        Reads in value from `setup` and converts it to indices for `output_sample_set`.
-        In the case of repeated observations, if incomplete data is available, use it.
+        Reads in value from `setup` and converts it to indices
+        for `output_sample_set`. In the case of repeated observations,
+        if incomplete data is available, use it.
         """
         if iteration is None:
             iteration = self._iteration
@@ -3832,7 +3842,7 @@ class discretization(object):
                 if self._setup[iteration]['obs'] is None:
                     logging.warn(
                         "Defaulting to estimating using data sample variance.")
-                else:  # if an observed is lingering, assuming it is for this reason.
+                else:  # use observed to infer std if it is missing.
                     logging.warn("Inferring standard deviation from observed.")
                     # method std() belongs to distribution
         else:  # write as-is if anything except None
@@ -3944,13 +3954,16 @@ class discretization(object):
         else:
             if self._input_sample_set._probabilities is not None:
                 # use probabilities and volumes to infer densities
-                den_local = np.divide(self._input_sample_set._probabilities_local,
-                                      self._input_sample_set._volumes_local)
+                den_local = np.divide(self._input_sample_set.
+                                      _probabilities_local,
+                                      self._input_sample_set.
+                                      _volumes_local)
                 self._initial_densities_local = den_local
             else:
                 vol_sum = np.sum(self._input_sample_set._volumes_local)
                 vol_sum = comm.allreduce(vol_sum, op=MPI.SUM)
-                prob_local = self._input_sample_set._volumes_local / vol_sum  # standard ansatz
+                # standard ansatz
+                prob_local = self._input_sample_set._volumes_local / vol_sum
                 self._initial_probabilities_local = prob_local
                 self._initial_densities_local = 1.0 / vol_sum
         self._initial_densities = util.get_global_values(
