@@ -1881,6 +1881,10 @@ class Test_sampling_discretization(unittest.TestCase):
         D.set_observed(dist.norm)
         D.set_data_from_observed()
         nptest.assert_array_equal(D.get_data(), 0)
+        D.observed_pdf()
+        D.set_data_driven_mode('SSE')
+        D.observed_pdf()
+        D.set_data_driven_mode('MSE')
 
     def test_set_observed_rv_frozen(self):
         """
@@ -2188,6 +2192,37 @@ class Test_sampling_discretization(unittest.TestCase):
         assert self.disc.get_input() == self.disc.get_input_sample_set()
         assert self.disc.get_output() == self.disc.get_output_sample_set()
 
+    def test_set_data_driven_mode(self):
+        """
+        Test data-driven functional setting.
+        """
+        D = self.disc
+        for mode in ['SSE', 'MSE', 'SWE']:
+            D.set_data_driven_mode(mode)
+            assert D.get_setup()['qoi'] == mode
+        # test error-catching
+        try:
+            D.set_data_driven('FAKE')
+        except ValueError:
+            pass
+
+    def test_set_data_driven_status(self):
+        """
+        Test data-driven mode options.
+        """
+        D = self.disc
+        D.set_data_driven()
+        assert D.get_setup(0)['col'] is True
+        D.set_data_driven(False)
+        assert D.get_setup(0)['col'] is False
+        # test inheriting mode
+        D.iterate()
+        assert D.get_setup()['col'] is False
+        D.set_data_driven()
+        assert D.get_setup()['col'] is True
+        D.set_data_driven(True, iteration=0)
+        assert D.get_setup(0)['col'] is True
+
     # def test_set_initial_densities(self):
     #     """
     #     TK - fix this test.
@@ -2213,7 +2248,8 @@ class Test_sampling_one_dim(Test_sampling_discretization):
         self.output_probability_set.set_values(values3)
         self.disc = sample.discretization(input_sample_set=self.input_set,
                                           output_sample_set=self.output_set,
-                                          output_probability_set=self.output_probability_set)
+                                          output_probability_set=self.
+                                          output_probability_set)
 
 
 class Test_sampling_repeated(Test_sampling_discretization):
@@ -2234,7 +2270,8 @@ class Test_sampling_repeated(Test_sampling_discretization):
         self.output_probability_set.set_values(values3)
         self.disc = sample.discretization(input_sample_set=self.input_set,
                                           output_sample_set=self.output_set,
-                                          output_probability_set=self.output_probability_set)
+                                          output_probability_set=self.
+                                          output_probability_set)
         self.disc.set_data_driven()
         self.std = 0.1
         self.disc.set_data(np.ones(self.dim2), std=self.std)
@@ -2317,33 +2354,26 @@ class Test_sampling_repeated(Test_sampling_discretization):
         map_point = D.map_point()
         nptest.assert_array_equal(mud_point, map_point)
 
-    def test_set_data_driven_mode(self):
-        """
-        Test data-driven functional setting.
-        """
-        D = self.disc
-        for mode in ['SSE', 'MSE', 'SWE']:
-            D.set_data_driven_mode(mode)
-            assert D.get_setup()['qoi'] == mode
-        # test error-catching
-        try:
-            D.set_data_driven('FAKE')
-        except ValueError:
-            pass
 
-    def test_set_data_driven_status(self):
-        """
-        Test data-driven mode options.
-        """
-        D = self.disc
-        D.set_data_driven()
-        assert D.get_setup(0)['col'] is True
-        D.set_data_driven(False)
-        assert D.get_setup(0)['col'] is False
-        # test inheriting mode
-        D.iterate()
-        assert D.get_setup()['col'] is False
-        D.set_data_driven()
-        assert D.get_setup()['col'] is True
-        D.set_data_driven(True, iteration=0)
-        assert D.get_setup(0)['col'] is True
+class Test_sampling_data_driven(Test_sampling_repeated):
+    def setUp(self):
+        self.dim1 = 1
+        self.num = 250
+        self.dim2 = 100
+        values1 = np.random.rand(self.num, self.dim1)
+        values2 = np.random.randn(self.num, self.dim2)
+        self.input_values = values1
+        self.output_values = values2
+        values3 = np.ones((self.num, self.dim2))
+        self.input_set = sample.sample_set(dim=self.dim1)
+        self.output_set = sample.sample_set(dim=self.dim2)
+        self.output_probability_set = sample.sample_set(dim=self.dim2)
+        self.input_set.set_values(values1)
+        self.output_set.set_values(values2)
+        self.output_probability_set.set_values(values3)
+        self.disc = sample.discretization(input_sample_set=self.input_set,
+                                          output_sample_set=self.output_set,
+                                          output_probability_set=self.
+                                          output_probability_set)
+        self.std = 0.1
+        self.disc.data_driven(np.ones(self.dim2), std=self.std)

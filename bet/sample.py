@@ -3264,7 +3264,7 @@ class discretization(object):
                     obs = norm(loc=0, scale=1)
                 elif data_driven_mode is 'MSE':
                     from scipy.stats.distributions import gamma
-                    obs = gamma(a=dim / 2.0, scale=2.0 / dim)
+                    obs = gamma(a=dim/2.0, scale=2.0/dim)
                 elif data_driven_mode is 'SSE':
                     from scipy.stats.distributions import chi2
                     obs = chi2(df=dim)
@@ -3898,7 +3898,7 @@ class discretization(object):
 
         return list(std)
 
-    def data_driven(self, inds=None, data=None, std=None, iteration=None):
+    def data_driven(self, data=None, std=None, inds=None, iteration=None):
         r"""
         Requires reference output probability value to work.
         Understood to mean "data" already polluted with noise.
@@ -3909,8 +3909,8 @@ class discretization(object):
         reference value in `output_probability_set`.
         passing inds alone can be like bootstrapping if using repeated.
         """
+        self.set_data_driven(True)
         self.set_data(data=data, iteration=iteration, std=std, inds=inds)
-        self.data_driven_mode(True)
 
     def get_setup(self, iteration=None):
         if iteration is not None:

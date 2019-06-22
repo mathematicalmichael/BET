@@ -269,7 +269,9 @@ class sampler(object):
 
         if comm.size > 1 and not globalize:
             local_save_file = os.path.join(os.path.dirname(save_file),
-                                           "proc{}_{}".format(comm.rank, os.path.basename(save_file)))
+                                           "proc{}_{}".
+                                           format(comm.rank, os.path.
+                                                  basename(save_file)))
         else:
             local_save_file = save_file
 
@@ -418,11 +420,11 @@ class sampler(object):
                 try:
                     msg = "Model not mapping reference value as expected."
                     msg += "Attempting reshape..."
-                    logging.log(20, msg)
+                    logging.warn(msg)
                     Q_ref = self.lb_model(lam_ref.reshape(1, -1))
                     output_sample_set.set_reference_value(Q_ref)
                 except ValueError:
-                    logging.log(20, 'Unable to map reference value.')
+                    logging.warn('Unable to map reference value.')
 
         if self.error_estimates:
             output_sample_set.set_error_estimates_local(local_output_ee)
@@ -457,7 +459,8 @@ class sampler(object):
         return discretization
 
     def create_random_discretization(self, sample_type, input_obj,
-                                     savefile=None, num_samples=None, criterion='center',
+                                     savefile=None, num_samples=None,
+                                     criterion='center',
                                      globalize=True, param_ref=None):
         """
         Sampling algorithm with three basic options
