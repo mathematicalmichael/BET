@@ -2252,7 +2252,7 @@ class Test_sampling_one_dim(Test_sampling_discretization):
                                           output_probability_set)
 
 
-class Test_sampling_repeated(Test_sampling_discretization):
+class Test_sampling_data_driven(Test_sampling_discretization):
     def setUp(self):
         self.dim1 = 1
         self.num = 250
@@ -2355,7 +2355,7 @@ class Test_sampling_repeated(Test_sampling_discretization):
         nptest.assert_array_equal(mud_point, map_point)
 
 
-class Test_sampling_data_driven(Test_sampling_repeated):
+class Test_sampling_data_driven_alt(Test_sampling_data_driven):
     def setUp(self):
         self.dim1 = 1
         self.num = 250
@@ -2377,3 +2377,27 @@ class Test_sampling_data_driven(Test_sampling_repeated):
                                           output_probability_set)
         self.std = 0.1
         self.disc.data_driven(np.ones(self.dim2), std=self.std)
+        
+class Test_sampling_repeated(Test_sampling_data_driven):
+    def setUp(self):
+        self.dim1 = 1
+        self.num = 250
+        self.dim2 = 100
+        values1 = np.random.rand(self.num, self.dim1)
+        values2 = np.random.randn(self.num, self.dim2)
+        self.input_values = values1
+        self.output_values = values2
+        values3 = np.ones((self.num, self.dim2))
+        self.input_set = sample.sample_set(dim=self.dim1)
+        self.output_set = sample.sample_set(dim=self.dim2)
+        self.output_probability_set = sample.sample_set(dim=self.dim2)
+        self.input_set.set_values(values1)
+        self.output_set.set_values(values2)
+        self.output_probability_set.set_values(values3)
+        self.disc = sample.discretization(input_sample_set=self.input_set,
+                                          output_sample_set=self.output_set,
+                                          output_probability_set=self.
+                                          output_probability_set)
+        self.std = 0.1
+        self.disc.data_driven(np.ones(self.dim2), std=self.std)
+        self.disc.set_repeated()
