@@ -1,6 +1,4 @@
-# Copyright (C) 2016 The BET Development Team
-
-# Steve Mattis 03/23/2016
+# Copyright (C) 2014-2019 The BET Development Team
 
 import unittest
 import os
