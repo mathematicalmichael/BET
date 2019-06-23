@@ -2876,11 +2876,14 @@ class discretization(object):
         """
         ci = self._input_sample_set.clip(cnum)
         co = self._output_sample_set.clip(cnum)
+        ps = self._output_probability_set
+        ei = self._emulated_input_sample_set
+        eo = self._emulated_output_sample_set
         return discretization(input_sample_set=ci,
                               output_sample_set=co,
-                              output_probability_set=self._output_probability_set,
-                              emulated_input_sample_set=self._emulated_input_sample_set,
-                              emulated_output_sample_set=self._emulated_output_sample_set)
+                              output_probability_set=ps,
+                              emulated_input_sample_set=ei,
+                              emulated_output_sample_set=eo)
 
     def merge(self, disc):
         """

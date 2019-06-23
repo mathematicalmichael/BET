@@ -550,8 +550,9 @@ class sampler(object):
                     if std is None:
                         raise AttributeError("Could not infer noise model")
                     else:
-                        logging.warn(
-                            "Missing noise model but std present. Assuming Normal.")
+                        msg = "Missing noise model but std. dev. availeble."
+                        msg += "We will assume a Normal Distribution"
+                        logging.warn(msg)
                         from scipy.stats import distributions
                         noise = distributions.norm(scale=std)
                 new_data += disc._output_probability_set.rvs(len(new_data),
