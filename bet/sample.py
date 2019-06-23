@@ -3358,7 +3358,7 @@ class discretization(object):
 
         den = self.initial_pdf(x) * self.ratio_pdf(y)
         if x is not None:
-            assert len(den) == x.shape[0]
+            assert len(den) == num
         else:
             assert len(den) == self.check_nums()
         return den
