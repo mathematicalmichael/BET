@@ -1,5 +1,6 @@
 dist: xenial
 language: python
+
 python:
     - "2.7"
     - "3.6"
@@ -13,7 +14,7 @@ before_install:
   - sudo apt-get install gfortran libblas-dev liblapack-dev mpich libmpich-dev
 
 install:
-  - pip install numpy scipy matplotlib pyDOE mpi4py nose codecov
+  - pip install matplotlib mpi4py nose codecov
   - python setup.py install
 
 script:
@@ -26,9 +27,6 @@ script:
 notifications:
     email:
         recipients:
-            - steve.a.mattis@gmail.com
-            - lichgraham@gmail.com
-            - scottw13@gmail.com
             - michael.pilosov@ucdenver.edu
         on_success: change
         on_failure: always
@@ -37,6 +35,7 @@ notifications:
 branches:
     only:
         - master
+        - sample
 
 # Push the results back to codecov
 after_success:

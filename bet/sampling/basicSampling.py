@@ -11,6 +11,7 @@ assume the measure on both spaces in Lebesgue.
 
 import collections
 import os
+import logging
 import warnings
 import glob
 import numpy as np
@@ -35,7 +36,7 @@ def loadmat(save_file, disc_name=None, model=None):
     :param string disc_name: name of :class:`~bet.sample.discretization` in
         file
     :param model: runs the model at a given set of parameter samples and
-        returns data 
+        returns data
     :type model: callable
 
     :rtype: tuple
@@ -43,7 +44,7 @@ def loadmat(save_file, disc_name=None, model=None):
 
     """
     # check to see if parallel save
-    if not (os.path.exists(save_file) or os.path.exists(save_file+'.mat')):
+    if not (os.path.exists(save_file) or os.path.exists(save_file + '.mat')):
         save_dir = os.path.dirname(save_file)
         base_name = os.path.basename(save_file)
         mdat_files = glob.glob(os.path.join(save_dir,
@@ -81,15 +82,15 @@ def random_sample_set(sample_type, input_obj, num_samples,
     :type input_obj: :class:`~bet.sample.sample_set` or
         :class:`numpy.ndarray` of shape (dim, 2) or ``int``
     :param string savefile: filename to save discretization
-    :param int num_samples: N, number of samples 
-    :param string criterion: latin hypercube criterion see 
+    :param int num_samples: N, number of samples
+    :param string criterion: latin hypercube criterion see
         `PyDOE <http://pythonhosted.org/pyDOE/randomized.html>`_
     :param bool globalize: Makes local variables global. Only applies if
         ``parallel==True``.
 
     :rtype: :class:`~bet.sample.sample_set`
     :returns: :class:`~bet.sample.sample_set` object which contains
-        input ``num_samples`` 
+        input ``num_samples``
 
     """
 
@@ -109,7 +110,7 @@ def random_sample_set(sample_type, input_obj, num_samples,
 
     if input_sample_set.get_domain() is None:
         # create the domain
-        input_domain = np.array([[0., 1.]]*dim)
+        input_domain = np.array([[0., 1.]] * dim)
         input_sample_set.set_domain(input_domain)
 
     if sample_type == "lhs":
@@ -123,7 +124,7 @@ def random_sample_set(sample_type, input_obj, num_samples,
                                                          comm.size)[comm.rank])
     elif sample_type == "random" or "r":
         # define local number of samples
-        num_samples_local = int((num_samples/comm.size) +
+        num_samples_local = int((num_samples / comm.size) +
                                 (comm.rank < num_samples % comm.size))
         # update the bounds based on the number of samples
         input_sample_set.update_bounds_local(num_samples_local)
@@ -153,7 +154,7 @@ def regular_sample_set(input_obj, num_samples_per_dim=1):
         the dimension or domain to sample from, the domain to sample from, or
         the dimension
     :type input_obj: :class:`~bet.sample.sample_set` or :class:`numpy.ndarray`
-        of shape (dim, 2) or ``int`` 
+        of shape (dim, 2) or ``int``
     :param num_samples_per_dim: number of samples per dimension
     :type num_samples_per_dim: :class:`~numpy.ndarray` of dimension
         ``(input_sample_set._dim,)``
@@ -207,8 +208,8 @@ def regular_sample_set(input_obj, num_samples_per_dim=1):
         indexing='ij')
 
     for i in range(dim):
-        input_values[:, i:i+1] = np.vstack(arrays_samples_dimension[i]
-                                           .flat[:])
+        input_values[:, i:i + 1] = np.vstack(arrays_samples_dimension[i]
+                                             .flat[:])
 
     input_sample_set.set_values(input_values)
     input_sample_set.global_to_local()
@@ -219,7 +220,7 @@ def regular_sample_set(input_obj, num_samples_per_dim=1):
 class sampler(object):
     """
     This class provides methods for adaptive sampling of parameter space to
-    provide samples to be used by algorithms to solve inverse problems. 
+    provide samples to be used by algorithms to solve inverse problems.
 
     num_samples
         total number of samples OR list of number of samples per dimension such
@@ -239,7 +240,7 @@ class sampler(object):
         :type lb_model: callable function
         :param int num_samples: N, number of samples
         :param bool error_estimates: Whether or not the model returns error
-            estimates 
+            estimates
         :param bool jacobians: Whether or not the model returns Jacobians
 
         """
@@ -263,13 +264,15 @@ class sampler(object):
         :param string save_file: file name
         :param discretization: input and output from sampling
         :type discretization: :class:`bet.sample.discretization`
-        :param bool globalize: Makes local variables global. 
+        :param bool globalize: Makes local variables global.
 
         """
 
         if comm.size > 1 and not globalize:
             local_save_file = os.path.join(os.path.dirname(save_file),
-                                           "proc{}_{}".format(comm.rank, os.path.basename(save_file)))
+                                           "proc{}_{}".
+                                           format(comm.rank, os.path.
+                                                  basename(save_file)))
         else:
             local_save_file = save_file
 
@@ -312,13 +315,13 @@ class sampler(object):
             :class:`numpy.ndarray` of shape (dim, 2) or ``int``
         :param string savefile: filename to save discretization
         :param int num_samples: N, number of samples (optional)
-        :param string criterion: latin hypercube criterion see 
+        :param string criterion: latin hypercube criterion see
             `PyDOE <http://pythonhosted.org/pyDOE/randomized.html>`_
-        :param bool globalize: Makes local variables global. 
+        :param bool globalize: Makes local variables global.
 
         :rtype: :class:`~bet.sample.sample_set`
         :returns: :class:`~bet.sample.sample_set` object which contains
-            input ``num_samples`` 
+            input ``num_samples``
 
         """
         if num_samples is None:
@@ -363,11 +366,11 @@ class sampler(object):
         :type input_sample_set: :class:`~bet.sample.sample_set` with
             num_smaples
         :param string savefile: filename to save samples and data
-        :param bool globalize: Makes local variables global. 
+        :param bool globalize: Makes local variables global.
 
-        :rtype: :class:`~bet.sample.discretization` 
+        :rtype: :class:`~bet.sample.discretization`
         :returns: :class:`~bet.sample.discretization` object which contains
-            input and output of ``num_samples`` 
+            input and output of ``num_samples``
 
         """
 
@@ -411,16 +414,18 @@ class sampler(object):
                 if not isinstance(lam_ref, collections.Iterable):
                     lam_ref = np.array([lam_ref])
                 Q_ref = self.lb_model(lam_ref)
+                if not isinstance(Q_ref, collections.Iterable):
+                    Q_ref = np.array([Q_ref])
                 output_sample_set.set_reference_value(Q_ref)
             except ValueError:
                 try:
                     msg = "Model not mapping reference value as expected."
                     msg += "Attempting reshape..."
-                    logging.log(20, msg)
+                    logging.warn(msg)
                     Q_ref = self.lb_model(lam_ref.reshape(1, -1))
                     output_sample_set.set_reference_value(Q_ref)
                 except ValueError:
-                    logging.log(20, 'Unable to map reference value.')
+                    logging.warn('Unable to map reference value.')
 
         if self.error_estimates:
             output_sample_set.set_error_estimates_local(local_output_ee)
@@ -448,11 +453,16 @@ class sampler(object):
 
         comm.barrier()
 
+        # Attach necessary attributes to discretization
+        discretization._setup[0]['model'] = self.lb_model
+        discretization._setup[0]['ind'] = list(np.arange(output_dim))
+
         return discretization
 
     def create_random_discretization(self, sample_type, input_obj,
-                                     savefile=None, num_samples=None, criterion='center',
-                                     globalize=True):
+                                     savefile=None, num_samples=None,
+                                     criterion='center',
+                                     globalize=True, param_ref=None):
         """
         Sampling algorithm with three basic options
 
@@ -460,7 +470,7 @@ class sampler(object):
                 ``lam_domain`` assuming a Lebesgue measure.
             * ``lhs`` generates a latin hyper cube of samples.
 
-        .. note:: 
+        .. note::
 
             This function is designed only for generalized rectangles and
             assumes a Lebesgue measure on the parameter space.
@@ -492,6 +502,92 @@ class sampler(object):
 
         input_sample_set = self.random_sample_set(sample_type, input_obj,
                                                   num_samples, criterion, globalize)
-
+        if param_ref is not None:
+            input_sample_set.set_reference_value(param_ref)
         return self.compute_QoI_and_create_discretization(input_sample_set,
                                                           savefile, globalize)
+
+    def add_data(self, discretization, data=None, globalize=True):
+        """
+        Add a column of data to the output sample set, update the
+        reference parameter, dimension information.
+        :param disc: A :class:`bet.sample.discretization` object with
+        :type disc: :class:`~bet.sample.discretization` for problem set
+
+        :rtype: :class:`~bet.sample.discretization`
+        :returns: :class:`~bet.sample.discretization` object which contains
+            input and output sample sets.
+        """
+        disc = discretization.copy()  # do not overwrite original
+        Q_ref = disc._output_sample_set._reference_value
+
+        # Take advantage of parallelism in other method to map values
+        input_sample_set = disc._input_sample_set
+        new = self.compute_QoI_and_create_discretization(input_sample_set,
+                                                         None, globalize)
+
+        # Append output values
+        num_new_obs = new._output_sample_set._dim
+        new_old_obs = new._output_sample_set.get_dim()
+        new._output_sample_set._dim = new_old_obs + num_new_obs
+        new_outputs = new._output_sample_set._values  # reference
+        old_outputs = disc._output_sample_set._values
+        new_outputs = np.concatenate((old_outputs, new_outputs), axis=1)
+        new._output_sample_set.set_values(new_outputs)
+
+        # If reference input specified, use it to set output reference
+        new_data = new._output_sample_set._reference_value
+        if not isinstance(new_data, collections.Iterable):
+            new_data = np.array([new_data])
+
+        if data is None:  # otherwise, append values
+            if new_data is not None:  # ref input must be specified
+                Q_ref = disc._output_probability_set._reference_value
+                # try to infer observed
+                noise = disc._setup[disc._iteration]['obs']
+                if noise is None:
+                    std = disc._setup[disc._iteration]['std']
+                    if std is None:
+                        raise AttributeError("Could not infer noise model")
+                    else:
+                        msg = "Missing noise model but std. dev. availeble."
+                        msg += "We will assume a Normal Distribution"
+                        logging.warn(msg)
+                        from scipy.stats import distributions
+                        noise = distributions.norm(scale=std)
+                new_data += disc._output_probability_set.rvs(len(new_data),
+                                                             dist=noise)
+                # add to noisy list
+                data = np.concatenate((Q_ref, new_data), axis=1)
+        else:  # data that is passed is assumed to be noisy.
+            data = np.concatenate((Q_ref, data), axis=1)
+
+        if not isinstance(data, collections.Iterable):
+            data = np.array([data])
+
+        new._output_sample_set.set_reference_value(data)
+
+        if globalize:
+            new._output_sample_set.global_to_local()
+
+        # TO-DO: appropriately set information for new sample set. anything
+        # that didn't carry over.
+
+        new._iteration = discretization._iteration + 1
+        new._setup = discretization._setup.copy()
+        new._setup[new._iteration]['model'] = self.lb_model
+        # if inds is None, keep using all the data.
+        if discretization._setup[discretization._iteration]['ind'] is not None:
+            # use just new data by default if previous inds existed
+            new._setup[new._iteration]['ind'] = np.arange(
+                num_new_obs) + new_old_obs
+        else:  # if None, copy.
+            new._setup[new._iteration]['ind'] = None
+        noise = discretization._setup[discretization._iteration]['std']
+        new._setup[new._iteration]['std'] = noise  # inherit noise distribution
+        data_driven = discretization._setup[discretization._iteration]['col']
+        # inherit solution type
+        new._setup[new._iteration]['col'] = data_driven
+        obs = discretization._setup[discretization._iteration]['obs']
+        new._setup[new._iteration]['obs'] = obs  # inherit observed
+        return new
