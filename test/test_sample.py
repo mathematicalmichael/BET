@@ -2375,7 +2375,8 @@ class Test_sampling_data_driven_alt(Test_sampling_data_driven):
                                           output_probability_set)
         self.std = 0.1
         self.disc.data_driven(np.ones(self.dim2), std=self.std)
-        
+
+
 class Test_sampling_repeated(Test_sampling_data_driven):
     def setUp(self):
         self.dim1 = 1

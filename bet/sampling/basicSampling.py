@@ -11,6 +11,7 @@ assume the measure on both spaces in Lebesgue.
 
 import collections
 import os
+import logging
 import warnings
 import glob
 import numpy as np
