@@ -318,7 +318,7 @@ class sample_set_base(object):
         self._error_estimates = None
         #: The sample domain, :class:`numpy.ndarray` of shape (dim, 2)
         self._domain = None
-        #: The sample domain pre-normalization, 
+        #: The sample domain pre-normalization,
         #: :class:`numpy.ndarray` of shape (dim, 2)
         self._domain_original = None
         #: Bounding box of values, :class:`numpy.ndarray`of shape (dim, 2)
@@ -589,7 +589,7 @@ class sample_set_base(object):
         :param values: values to append
         :type values: :class:`numpy.ndarray` of shape (some_num, dim)
         """
-        vl = util.fix_dimensions_data(values,self._dim)
+        vl = util.fix_dimensions_data(values, self._dim)
         self._values = np.concatenate((self._values, vl), 0)
 
     def append_values_local(self, values_local):
@@ -603,7 +603,7 @@ class sample_set_base(object):
         :param values_local: values to append
         :type values_local: :class:`numpy.ndarray` of shape (some_num, dim)
         """
-        vl = util.fix_dimensions_data(values_local,self._dim)
+        vl = util.fix_dimensions_data(values_local, self._dim)
         self._values_local = np.concatenate((self._values_local, vl), 0)
 
     def clip(self, cnum):
@@ -3230,7 +3230,7 @@ class discretization(object):
             data_driven_status = self._setup[i]['col']
             if data_driven_status:
                 s = self._setup[i]['qoi']
-                logging.info("Iteration %i is using %s."%(i, s))
+                logging.info("Iteration %i is using %s." % (i, s))
             pre = self._setup[i]['pre']  # load predicted dist
             data = self.format_output_values(x=x, iteration=i)
             temp_eval = np.log(self._output_sample_set.pdf(x=data,
