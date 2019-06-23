@@ -1043,7 +1043,8 @@ class sample_set_base(object):
             int(comm.rank < n_mc_points % comm.size)
         width = self._domain[:, 1] - self._domain[:, 0]
         mc_points = width * np.random.random((n_mc_points_local,
-                                              self._domain.shape[0])) + self._domain[:, 0]
+                                              self._domain.shape[0])) +\
+                                              self._domain[:, 0]
         (_, emulate_ptr) = self.query(mc_points)
         vol = np.zeros((num,))
         for i in range(num):
@@ -1947,7 +1948,8 @@ class voronoi_sample_set(sample_set_base):
 
                 (_, emulate_ptr) = kdtree.query(local_lambda_emulate,
                                                 p=self._p_norm,
-                                                distance_upper_bound=sample_radii[iglobal])
+                                                distance_upper_bound=\
+                                                sample_radii[iglobal])
 
                 samples_in_cell = np.sum(np.equal(emulate_ptr, iglobal))
 
@@ -3358,7 +3360,7 @@ class discretization(object):
 
         den = self.initial_pdf(x) * self.ratio_pdf(y)
         if x is not None:
-            assert len(den) == num
+            assert len(den) == x.shape[0]
         else:
             assert len(den) == self.check_nums()
         return den
