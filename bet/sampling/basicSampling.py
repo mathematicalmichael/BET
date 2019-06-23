@@ -541,7 +541,7 @@ class sampler(object):
             new_data = np.array([new_data])
 
         if data is None:  # otherwise, append values
-            if new_data is not None:  # reference input must have been specified
+            if new_data is not None:  # ref input must be specified
                 Q_ref = disc._output_probability_set._reference_value
                 # try to infer observed
                 noise = disc._setup[disc._iteration]['obs']

@@ -3227,8 +3227,11 @@ class discretization(object):
             self.compute_pushforward(iteration=iteration)
             logging.info("Missing predicted distribution. Computing now.")
 
-        data_driven_status = self._setup[iteration]['col']
         for i in range(0, iteration + 1):  # get all previous
+            data_driven_status = self._setup[i]['col']
+            if data_driven_status:
+                s = self._setup[i]['qoi']
+                logging.info("Iteration %i is using %s."%(i, s))
             pre = self._setup[i]['pre']  # load predicted dist
             data = self.format_output_values(x=x, iteration=i)
             temp_eval = np.log(self._output_sample_set.pdf(x=data,
