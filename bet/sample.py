@@ -3345,19 +3345,17 @@ class discretization(object):
             y = self._output_sample_set._values
         else:
             num = x.shape[0]
-            y = np.zeros((x.shape[0], 1))  # temporary vector of correct shape
+            y = np.empty((num, 0))  # temporary vector of correct shape
 
             for iteration in self._setup.keys():  # map through every model
                 inds = self.get_output_indices(iteration)
-                dim = len(inds)
                 unique = len(np.unique(inds))
                 model = self._setup[iteration]['model']
                 # ensure model output size
                 if model is not None:
-                    z = model(x).reshape(-1, unique)[:, inds]
+                    z = model(x).reshape(num, unique)[:, inds]
                     y = np.concatenate((y, z), axis=1)
 
-            y = y[:, 1:]  # remove zeros
         den = self.initial_pdf(x) * self.ratio_pdf(y)
         if x is not None:
             assert len(den) == x.shape[0]
