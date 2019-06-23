@@ -316,9 +316,10 @@ class sample_set_base(object):
         #: :class:`numpy.ndarray` of model error estimates at samples of shape
         #: (num, dim)
         self._error_estimates = None
-        #: The sample domain :class:`numpy.ndarray` of shape (dim, 2)
+        #: The sample domain, :class:`numpy.ndarray` of shape (dim, 2)
         self._domain = None
-        #: Sample domain pre-normalization :class:`numpy.ndarray` of shape (dim, 2)
+        #: The sample domain pre-normalization, 
+        #: :class:`numpy.ndarray` of shape (dim, 2)
         self._domain_original = None
         #: Bounding box of values, :class:`numpy.ndarray`of shape (dim, 2)
         self._bounding_box = None
@@ -588,9 +589,8 @@ class sample_set_base(object):
         :param values: values to append
         :type values: :class:`numpy.ndarray` of shape (some_num, dim)
         """
-        self._values = np.concatenate((self._values, util.
-                                       fix_dimensions_data(values,
-                                                           self._dim)), 0)
+        vl = util.fix_dimensions_data(values,self._dim)
+        self._values = np.concatenate((self._values, vl), 0)
 
     def append_values_local(self, values_local):
         """
@@ -603,9 +603,8 @@ class sample_set_base(object):
         :param values_local: values to append
         :type values_local: :class:`numpy.ndarray` of shape (some_num, dim)
         """
-        self._values_local = np.concatenate((self._values_local, util.
-                                             fix_dimensions_data(values_local,
-                                                                 self._dim)), 0)
+        vl = util.fix_dimensions_data(values_local,self._dim)
+        self._values_local = np.concatenate((self._values_local, vl), 0)
 
     def clip(self, cnum):
         """
