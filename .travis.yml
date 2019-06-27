@@ -1,9 +1,9 @@
-matrix:
-  include:
-    - os: linux
-      dist: xenial
-    - os: osx
-  allow_failures:
+os: 
+  - linux
+  dist: xenial
+   - osx
+  
+allow_failures:
     - os: osx
 
 language: python
@@ -18,7 +18,7 @@ services:
 
 before_install:
   - "export DISPLAY=:99.0"
-  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew update && brew install gfortran libblas-dev liblapack-dev mpich libmpich-dev; fi
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew update && brew install mpich libmpich-dev gfortran libblas-dev liblapack-dev; fi
   - if [ "TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get install gfortran libblas-dev liblapack-dev mpich libmpich-dev; fi
 
 install:
