@@ -1,4 +1,11 @@
-dist: xenial
+matrix:
+  include:
+    - os: linux
+      dist: xenial
+    - os: osx
+  allow_failures:
+    - os: osx
+
 language: python
 
 python:
@@ -11,7 +18,8 @@ services:
 
 before_install:
   - "export DISPLAY=:99.0"
-  - sudo apt-get install gfortran libblas-dev liblapack-dev mpich libmpich-dev
+  - if [ "$TRAVIS_OS_NAME" == "osx" ]; then brew update && brew install gfortran libblas-dev liblapack-dev mpich libmpich-dev; fi
+  - if [ "TRAVIS_OS_NAME" == "linux" ]; then sudo apt-get install gfortran libblas-dev liblapack-dev mpich libmpich-dev; fi
 
 install:
   - pip install matplotlib mpi4py nose codecov
