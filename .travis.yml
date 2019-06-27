@@ -1,8 +1,9 @@
 matrix:
-  os: 
-    - linux
-    dist: xenial
-     - osx
+  include:
+    os: 
+      - linux
+      dist: xenial
+       - osx
  
   allow_failures:
     - os: osx
