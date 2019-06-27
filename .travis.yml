@@ -2,7 +2,7 @@ os:
   - linux
   dist: xenial
    - osx
-  
+ 
 allow_failures:
     - os: osx
 
