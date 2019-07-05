@@ -590,7 +590,7 @@ def verify_regular_sample_set_dimension(sampler, input_dim,
     nptest.assert_array_equal(test_sample_set._values,
                               my_sample_set._values)
 
-   
+
 class Test_basic_sampler(unittest.TestCase):
     """
     Test :class:`bet.sampling.basicSampling.sampler`.
@@ -799,7 +799,7 @@ class Test_basic_sampler(unittest.TestCase):
         for three different QoI maps (1 to 1, 3 to 1, 3 to 2, 10 to 4).
         """
         input_domain_list = [self.input_domain1, self.input_domain1,
-                             self.input_domain3, self.input_domain3, 
+                             self.input_domain3, self.input_domain3,
                              self.input_domain10]
 
         test_list = list(zip(self.models, self.samplers, input_domain_list,
@@ -814,11 +814,13 @@ class Test_basic_sampler(unittest.TestCase):
                                                         num_samples,
                                                         savefile)
 
+
 class Test_basic_sampler_extended(Test_basic_sampler):
     """
     Test model and output appending and reference 
     values for :class:`bet.sampling.basicSampling.sampler`.
     """
+
     def setUp(self):
         # create 1-1 map
         self.input_domain1 = np.column_stack((np.zeros((1,)), np.ones((1,))))
@@ -876,5 +878,3 @@ class Test_basic_sampler_extended(Test_basic_sampler):
         self.input_sample_set6 = sample_set(self.input_domain10.shape[0])
         self.input_sample_set6.set_reference_value(ref_val3)
         self.input_sample_set6.set_domain(self.input_domain10)
-
- 
