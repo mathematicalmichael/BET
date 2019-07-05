@@ -629,7 +629,7 @@ class Test_basic_sampler(unittest.TestCase):
             self.samplers.append(bsam.sampler(model, num_samples))
 
         self.input_dim1 = 1
-        self.input_dim2 = 2
+        self.input_dim2 = 3  # can be set to other dimensions.
         self.input_dim3 = 10
 
         self.input_sample_set1 = sample_set(self.input_dim1)
@@ -832,10 +832,11 @@ class Test_basic_sampler_extended(Test_basic_sampler):
 
         def map_3t1(x):
             return np.sum(x, 1)
-        # create 3-2 map
 
+        # create 3-2 map
         def map_3t2(x):
             return np.vstack(([x[:, 0] + x[:, 1], x[:, 2]])).transpose()
+
         # create 10-4 map
         self.input_domain10 = np.column_stack(
             (np.zeros((10,)), np.ones((10,))))
@@ -854,7 +855,7 @@ class Test_basic_sampler_extended(Test_basic_sampler):
             self.samplers.append(bsam.sampler(model, num_samples))
 
         self.input_dim1 = 1
-        self.input_dim2 = 2
+        self.input_dim2 = 3
         self.input_dim3 = 10
 
         self.input_sample_set1 = sample_set(self.input_dim1)
