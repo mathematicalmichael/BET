@@ -590,7 +590,7 @@ def verify_regular_sample_set_dimension(sampler, input_dim,
     nptest.assert_array_equal(test_sample_set._values,
                               my_sample_set._values)
 
-
+   
 class Test_basic_sampler(unittest.TestCase):
     """
     Test :class:`bet.sampling.basicSampling.sampler`.
@@ -799,7 +799,8 @@ class Test_basic_sampler(unittest.TestCase):
         for three different QoI maps (1 to 1, 3 to 1, 3 to 2, 10 to 4).
         """
         input_domain_list = [self.input_domain1, self.input_domain1,
-                             self.input_domain3, self.input_domain3, self.input_domain10]
+                             self.input_domain3, self.input_domain3, 
+                             self.input_domain10]
 
         test_list = list(zip(self.models, self.samplers, input_domain_list,
                              self.savefiles))
@@ -808,5 +809,72 @@ class Test_basic_sampler(unittest.TestCase):
             for sample_type in ["random", "r", "lhs"]:
                 for num_samples in [None, 25]:
                     verify_create_random_discretization(model, sampler,
-                                                        sample_type, input_domain, num_samples,
+                                                        sample_type,
+                                                        input_domain,
+                                                        num_samples,
                                                         savefile)
+
+class Test_basic_sampler_extended(Test_basic_sampler):
+    """
+    Test model and output appending and reference 
+    values for :class:`bet.sampling.basicSampling.sampler`.
+    """
+    def setUp(self):
+        # create 1-1 map
+        self.input_domain1 = np.column_stack((np.zeros((1,)), np.ones((1,))))
+
+        def map_1t1(x):
+            return np.sin(x)
+        # create 3-1 map
+        self.input_domain3 = np.column_stack((np.zeros((3,)), np.ones((3,))))
+
+        def map_3t1(x):
+            return np.sum(x, 1)
+        # create 3-2 map
+
+        def map_3t2(x):
+            return np.vstack(([x[:, 0] + x[:, 1], x[:, 2]])).transpose()
+        # create 10-4 map
+        self.input_domain10 = np.column_stack(
+            (np.zeros((10,)), np.ones((10,))))
+
+        def map_10t4(x):
+            x1 = x[:, 0] + x[:, 1]
+            x2 = x[:, 2] + x[:, 3]
+            x3 = x[:, 4] + x[:, 5]
+            x4 = np.sum(x[:, [6, 7, 8, 9]], 1)
+            return np.vstack([x1, x2, x3, x4]).transpose()
+        num_samples = 100
+        self.savefiles = ["11t11", "1t1", "3to1", "3to2", "10to4"]
+        self.models = [map_1t1, map_1t1, map_3t1, map_3t2, map_10t4]
+        self.samplers = []
+        for model in self.models:
+            self.samplers.append(bsam.sampler(model, num_samples))
+
+        self.input_dim1 = 1
+        self.input_dim2 = 2
+        self.input_dim3 = 10
+
+        self.input_sample_set1 = sample_set(self.input_dim1)
+        ref_val1 = np.random.rand(self.input_dim1)
+        self.input_sample_set1.set_reference_value(ref_val1)
+        self.input_sample_set2 = sample_set(self.input_dim2)
+        ref_val2 = np.random.rand(self.input_dim2)
+        self.input_sample_set2.set_reference_value(ref_val2)
+        self.input_sample_set3 = sample_set(self.input_dim3)
+        ref_val3 = np.random.rand(self.input_dim3)
+        self.input_sample_set3.set_reference_value(ref_val3)
+
+        self.input_sample_set4 = sample_set(self.input_domain1.shape[0])
+        self.input_sample_set4.set_reference_value(ref_val1)
+        self.input_sample_set4.set_domain(self.input_domain1)
+
+        self.input_sample_set5 = sample_set(self.input_domain3.shape[0])
+        self.input_sample_set5.set_reference_value(ref_val2)
+        self.input_sample_set5.set_domain(self.input_domain3)
+
+        self.input_sample_set6 = sample_set(self.input_domain10.shape[0])
+        self.input_sample_set6.set_reference_value(ref_val3)
+        self.input_sample_set6.set_domain(self.input_domain10)
+
+ 
