@@ -2210,14 +2210,17 @@ class Test_sampling_discretization(unittest.TestCase):
         """
         D = self.disc
         D.set_data_driven()
+        # test toggling modes
         assert D.get_setup(0)['col'] is True
         D.set_data_driven(False)
         assert D.get_setup(0)['col'] is False
         # test inheriting mode
         D.iterate()
         assert D.get_setup()['col'] is False
+        # change current mode
         D.set_data_driven()
         assert D.get_setup()['col'] is True
+        # change previous mode
         D.set_data_driven(True, iteration=0)
         assert D.get_setup(0)['col'] is True
 

@@ -3207,13 +3207,8 @@ class discretization(object):
         self._iteration += 1
         it = self._iteration
         self.default_setup()
-        # copying this should basically function like "copying data"
-        self._setup[it]['obs'] = np.copy(self._setup[it - 1]['obs'])
-        self._setup[it]['pre'] = np.copy(self._setup[it - 1]['pre'])
-        self._setup[it]['std'] = np.copy(self._setup[it - 1]['std'])
-        self._setup[it]['col'] = np.copy(self._setup[it - 1]['col'])
-        self._setup[it]['ind'] = np.copy(self._setup[it - 1]['ind'])
-        self._setup[it]['qoi'] = np.copy(self._setup[it - 1]['qoi'])
+        # inherit all features in the new iteration
+        self._setup[it] = self._setup[it-1].copy()
         pass
 
     def set_iteration(self, iteration=0):
