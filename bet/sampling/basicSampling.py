@@ -509,7 +509,7 @@ class sampler(object):
         return self.compute_QoI_and_create_discretization(input_sample_set,
                                                           savefile, globalize)
 
-    def add_data(self, discretization, data=None, globalize=True):
+    def add_data(self, discretization, data=None, savefile=None, globalize=True):
         """
         Add a column of data to the output sample set, update the
         reference parameter, dimension information.
@@ -598,4 +598,9 @@ class sampler(object):
         new._setup[new._iteration]['col'] = data_driven
         obs = discretization._setup[discretization._iteration]['obs']
         new._setup[new._iteration]['obs'] = obs  # inherit observed
+
+        mdat = dict()
+        if savefile is not None:
+            self.save(mdat, savefile, new, globalize=globalize)
+        
         return new

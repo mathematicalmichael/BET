@@ -206,7 +206,8 @@ def verify_add_data(model, sampler,
     my_discretization = sampler.compute_QoI_and_create_discretization(
         input_sample_set, savefile, globalize=True)
     # check add_data
-    my_discretization = sampler.add_data(my_discretization, globalize=True)
+    my_discretization = sampler.add_data(my_discretization,
+                                         savefile=savefile, globalize=True)
     # comm.barrier()
 
     my_num = my_discretization.check_nums()
