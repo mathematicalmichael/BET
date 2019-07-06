@@ -888,13 +888,17 @@ class Test_basic_sampler_extended(Test_basic_sampler):
 
         # create 3-2 map
         def map_3t2(x):
-            return np.vstack(([x[:, 0] + x[:, 1], x[:, 2]])).transpose()
-
+            try:
+                return np.vstack(([x[:, 0] + x[:, 1], x[:, 2]])).transpose()
+            except IndexError:  # support reference-parameter mapping
+                return np.vstack(([x[0] + x[1], x[2]])).transpose()
         # create 10-4 map
         self.input_domain10 = np.column_stack(
             (np.zeros((10,)), np.ones((10,))))
 
         def map_10t4(x):
+            if len(x.shape) == 1:
+                x = np.array([x])  # support for reference parameter
             x1 = x[:, 0] + x[:, 1]
             x2 = x[:, 2] + x[:, 3]
             x3 = x[:, 4] + x[:, 5]
@@ -946,8 +950,10 @@ class Test_basic_sampler_extended(Test_basic_sampler):
         list_of_sample_sets = [None] * len(list_of_samples)
 
         for i, array in enumerate(list_of_samples):
-            list_of_sample_sets[i] = sample_set(list_of_dims[i])
+            dim = list_of_dims[i]
+            list_of_sample_sets[i] = sample_set(dim)
             list_of_sample_sets[i].set_values(array)
+            list_of_sample_sets[i].set_reference_value(np.random.rand(dim))
 
         test_list = list(zip(self.models, self.samplers, list_of_sample_sets,
                              self.savefiles))

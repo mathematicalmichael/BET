@@ -418,7 +418,7 @@ class sampler(object):
                 Q_ref = self.lb_model(lam_ref)
                 if not isinstance(Q_ref, collections.Iterable):
                     Q_ref = np.array([Q_ref])
-                output_sample_set.set_reference_value(Q_ref)
+                output_sample_set.set_reference_value(Q_ref.ravel())
             except ValueError:
                 try:
                     msg = "Model not mapping reference value as expected."
@@ -529,11 +529,12 @@ class sampler(object):
                                                          None, globalize)
 
         # Append output values
-        num_new_obs = new._output_sample_set._dim
-        new_old_obs = new._output_sample_set.get_dim()
-        new._output_sample_set._dim = new_old_obs + num_new_obs
+        num_new_obs = new._output_sample_set.get_dim()
+        num_old_obs = disc._output_sample_set.get_dim()
+        new._output_sample_set._dim = num_old_obs + num_new_obs
         new_outputs = new._output_sample_set._values  # reference
         old_outputs = disc._output_sample_set._values
+ 
         new_outputs = np.column_stack((old_outputs, new_outputs))
         new._output_sample_set.set_values(new_outputs)
 
@@ -541,8 +542,8 @@ class sampler(object):
         new_ref_val = new._output_sample_set._reference_value
         if new_ref_val is not None:
             if not isinstance(new_ref_val, collections.Iterable):
-                new_ref_val = np.array([new_ref_val])
-            new_ref_val = np.concatenate((Q_ref, new_ref_val), axis=1)
+                new_ref_val = np.array(new_ref_val)
+            new_ref_val = np.column_stack((Q_ref, new_ref_val)).ravel()
             new._output_sample_set.set_reference_value(new_ref_val)
         
         # Noisy (raw) data passed, no need for reference.
@@ -570,7 +571,7 @@ class sampler(object):
             else:  # data that is passed is assumed to be noisy.
                 ref = disc._output_probability_set._reference_value
                 data = np.concatenate((ref, data), axis=1)
-            out_prob_set = sample.sample_set(new_old_obs + num_new_obs)
+            out_prob_set = sample.sample_set(num_old_obs + num_new_obs)
             new.set_output_probability_set(out_prob_set)
             new._output_probability_set.set_reference_value(data)
 
@@ -588,16 +589,9 @@ class sampler(object):
         if discretization._setup[discretization._iteration]['ind'] is not None:
             # use just new data by default if previous inds existed
             new._setup[new._iteration]['ind'] = np.arange(
-                num_new_obs) + new_old_obs
+                num_new_obs) + num_old_obs
         else:  # if None, copy.
             new._setup[new._iteration]['ind'] = None
-        noise = discretization._setup[discretization._iteration]['std']
-        new._setup[new._iteration]['std'] = noise  # inherit noise distribution
-        data_driven = discretization._setup[discretization._iteration]['col']
-        # inherit solution type
-        new._setup[new._iteration]['col'] = data_driven
-        obs = discretization._setup[discretization._iteration]['obs']
-        new._setup[new._iteration]['obs'] = obs  # inherit observed
 
         mdat = dict()
         if savefile is not None:
