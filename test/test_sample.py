@@ -2160,7 +2160,7 @@ class Test_sampling_discretization(unittest.TestCase):
 
     def test_likelihood(self):
         """
-        Test likelihood function
+        Test likelihood function in default mode.
         """
         D = self.disc
 
@@ -2330,7 +2330,7 @@ class Test_sampling_data_driven(Test_sampling_discretization):
 
     def test_likelihood(self):
         """
-        Test likelihood function
+        Test likelihood function with data-driven.
         D = self.disc
         """
         D = self.disc
@@ -2343,7 +2343,7 @@ class Test_sampling_data_driven(Test_sampling_discretization):
 
         D.set_model(mymodel)
         D.set_initial(dist.norm(loc=[0] * self.dim1,
-                                scale=[1] * self.dim1))  # uniform [0,1]
+                                scale=[1] * self.dim1))
 
         D.set_data([0.5] * self.dim2 + self.std * np.random.randn(self.dim2))
         D.set_predicted()
@@ -2353,7 +2353,8 @@ class Test_sampling_data_driven(Test_sampling_discretization):
         D.set_observed(scale=[self.std] * self.dim2)
         D.set_likelihood()
         map_point = D.map_point()
-        nptest.assert_array_equal(mud_point, map_point)
+        nptest.assert_array_almost_equal(mud_point, map_point, 1)
+        assert np.abs(mud_point-map_point)/np.linalg.norm(map_point) < 0.05
 
 
 class Test_sampling_data_driven_alt(Test_sampling_data_driven):
