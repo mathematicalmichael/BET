@@ -184,7 +184,7 @@ def verify_compute_QoI_and_create_discretization(model, sampler,
                               saved_disc._output_sample_set.get_values())
 
 
-def verify_add_data(model, sampler,
+def verify_add_qoi(model, sampler,
                     input_sample_set,
                     savefile):
     """
@@ -205,8 +205,8 @@ def verify_add_data(model, sampler,
     print(savefile, input_sample_set.get_dim())
     my_discretization = sampler.compute_QoI_and_create_discretization(
         input_sample_set, savefile, globalize=True)
-    # check add_data
-    my_discretization = sampler.add_data(my_discretization,
+    # check add_qoi
+    my_discretization = sampler.add_qoi(my_discretization,
                                          savefile=savefile, globalize=True)
     # comm.barrier()
 
@@ -937,9 +937,9 @@ class Test_basic_sampler_extended(Test_basic_sampler):
         self.input_sample_set6.set_reference_value(ref_val3)
         self.input_sample_set6.set_domain(self.input_domain10)
 
-    def test_add_data(self):
+    def test_add_qoi(self):
         """
-        Test :meth:`bet.sampling.basicSampling.sampler.add_data`
+        Test :meth:`bet.sampling.basicSampling.sampler.add_qoi`
         for three different QoI maps (1 to 1, 3 to 1, 3 to 2, 10 to 4).
         """
         # create a list of different sets of samples
@@ -959,6 +959,30 @@ class Test_basic_sampler_extended(Test_basic_sampler):
                              self.savefiles))
 
         for model, sampler, input_sample_set, savefile in test_list:
-            verify_add_data(model, sampler, input_sample_set, savefile)
+            verify_add_qoi(model, sampler, input_sample_set, savefile)
+
+    def test_add_qoi_with_data(self):
+        """
+        Test :meth:`bet.sampling.basicSampling.sampler.add_qoi`
+        for three different QoI maps (1 to 1, 3 to 1, 3 to 2, 10 to 4).
+        """
+        # create a list of different sets of samples
+        list_of_samples = [np.ones((4, )), np.ones((4, 1)), np.ones((4, 3)),
+                           np.ones((4, 3)), np.ones((4, 10))]
+        list_of_dims = [1, 1, 3, 3, 10]
+
+        list_of_sample_sets = [None] * len(list_of_samples)
+
+        for i, array in enumerate(list_of_samples):
+            dim = list_of_dims[i]
+            list_of_sample_sets[i] = sample_set(dim)
+            list_of_sample_sets[i].set_values(array)
+            list_of_sample_sets[i].set_reference_value(np.random.rand(dim))
+
+        test_list = list(zip(self.models, self.samplers, list_of_sample_sets,
+                             self.savefiles))
+
+        for model, sampler, input_sample_set, savefile in test_list:
+            verify_add_qoi(model, sampler, input_sample_set, savefile)
 
  

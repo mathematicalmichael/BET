@@ -427,7 +427,7 @@ class sampler(object):
                     Q_ref = self.lb_model(lam_ref.reshape(1, -1))
                     output_sample_set.set_reference_value(Q_ref)
                 except ValueError:
-                    logging.warn('Unable to map reference value.')
+                    sample.dim_not_matching('Unable to map reference value.')
 
         if self.error_estimates:
             output_sample_set.set_error_estimates_local(local_output_ee)
@@ -509,7 +509,7 @@ class sampler(object):
         return self.compute_QoI_and_create_discretization(input_sample_set,
                                                           savefile, globalize)
 
-    def add_data(self, discretization, data=None, savefile=None, globalize=True):
+    def add_qoi(self, discretization, data=None, savefile=None, globalize=True):
         """
         Add a column of data to the output sample set, update the
         reference parameter, dimension information.
