@@ -373,6 +373,8 @@ class sampler(object):
             input and output of ``num_samples``
 
         """
+        if isinstance(input_sample_set, int):
+            input_sample_set = random_sample_set(input_sample_set)
 
         # Update the number of samples
         self.num_samples = input_sample_set.check_num()
@@ -532,40 +534,45 @@ class sampler(object):
         new._output_sample_set._dim = new_old_obs + num_new_obs
         new_outputs = new._output_sample_set._values  # reference
         old_outputs = disc._output_sample_set._values
-        new_outputs = np.concatenate((old_outputs, new_outputs), axis=1)
+        new_outputs = np.column_stack((old_outputs, new_outputs))
         new._output_sample_set.set_values(new_outputs)
 
         # If reference input specified, use it to set output reference
-        new_data = new._output_sample_set._reference_value
-        if not isinstance(new_data, collections.Iterable):
-            new_data = np.array([new_data])
-
-        if data is None:  # otherwise, append values
-            if new_data is not None:  # ref input must be specified
-                Q_ref = disc._output_probability_set._reference_value
-                # try to infer observed
-                noise = disc._setup[disc._iteration]['obs']
-                if noise is None:
-                    std = disc._setup[disc._iteration]['std']
-                    if std is None:
-                        raise AttributeError("Could not infer noise model")
-                    else:
-                        msg = "Missing noise model but std. dev. availeble."
-                        msg += "We will assume a Normal Distribution"
-                        logging.warn(msg)
-                        from scipy.stats import distributions
-                        noise = distributions.norm(scale=std)
-                new_data += disc._output_probability_set.rvs(len(new_data),
+        new_ref_val = new._output_sample_set._reference_value
+        if new_ref_val is not None:
+            if not isinstance(new_ref_val, collections.Iterable):
+                new_ref_val = np.array([new_ref_val])
+            new_ref_val = np.concatenate((Q_ref, new_ref_val), axis=1)
+            new._output_sample_set.set_reference_value(new_ref_val)
+        
+        # Noisy (raw) data passed, no need for reference.
+        if disc._output_probability_set is not None:
+            if data is None:  # otherwise, append values
+                if new_data is not None:  # ref input must be specified
+                    Q_ref = disc._output_probability_set._reference_value
+                    # try to infer observed
+                    noise = disc._setup[disc._iteration]['obs']
+                    if noise is None:
+                        std = disc._setup[disc._iteration]['std']
+                        if std is None:
+                            raise AttributeError("Could not infer noise model")
+                        else:
+                            msg = "Missing noise model but std. dev. availeble."
+                            msg += "We will assume a Normal Distribution"
+                            logging.warn(msg)
+                            from scipy.stats import distributions
+                            noise = distributions.norm(scale=std)
+                    new_data += disc._output_probability_set.rvs(len(new_data),
                                                              dist=noise)
-                # add to noisy list
-                data = np.concatenate((Q_ref, new_data), axis=1)
-        else:  # data that is passed is assumed to be noisy.
-            data = np.concatenate((Q_ref, data), axis=1)
-
-        if not isinstance(data, collections.Iterable):
-            data = np.array([data])
-
-        new._output_sample_set.set_reference_value(data)
+                    # add to noisy list
+                    ref = disc._output_probability_set._reference_value
+                    data = np.concatenate((ref, new_data), axis=1)
+            else:  # data that is passed is assumed to be noisy.
+                ref = disc._output_probability_set._reference_value
+                data = np.concatenate((ref, data), axis=1)
+            out_prob_set = sample.sample_set(new_old_obs + num_new_obs)
+            new.set_output_probability_set(out_prob_set)
+            new._output_probability_set.set_reference_value(data)
 
         if globalize:
             new._output_sample_set.global_to_local()
@@ -573,8 +580,9 @@ class sampler(object):
         # TO-DO: appropriately set information for new sample set. anything
         # that didn't carry over.
 
-        new._iteration = discretization._iteration + 1
+        new._iteration = discretization._iteration
         new._setup = discretization._setup.copy()
+        new.iterate()
         new._setup[new._iteration]['model'] = self.lb_model
         # if inds is None, keep using all the data.
         if discretization._setup[discretization._iteration]['ind'] is not None:

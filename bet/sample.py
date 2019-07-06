@@ -3121,10 +3121,13 @@ class discretization(object):
             if model is not None:
                 z = model(self._input_sample_set._values)
                 if lam_ref is not None:
-                    v = np.concatenate((v, model(lam_ref)))
+                    try:
+                        v = np.concatenate((v, model(lam_ref)), axis=0)
+                    except ValueError:  # handle scalar models
+                        v = np.column_stack((v, model(lam_ref).reshape(1,)))
                 try:
-                    y = np.concatenate((y, z), axis=1)
-                except np.AxisError:  # 1d support
+                    y = np.column_stack((y, z))
+                except np.AxisError:  # handle scalar models
                     y = np.concatenate((y, z.reshape(-1, 1)), axis=1)
             y = y[:, 1:]  # remove zeros
         self._output_sample_set._dim = y.shape[1]
@@ -3205,12 +3208,12 @@ class discretization(object):
         it = self._iteration
         self.default_setup()
         # copying this should basically function like "copying data"
-        self._setup[self._iteration]['obs'] = self._setup[it - 1]['obs']
-        self._setup[self._iteration]['pre'] = self._setup[it - 1]['pre']
-        self._setup[self._iteration]['std'] = self._setup[it - 1]['std']
-        self._setup[self._iteration]['col'] = self._setup[it - 1]['col']
-        self._setup[self._iteration]['ind'] = self._setup[it - 1]['ind']
-        self._setup[self._iteration]['qoi'] = self._setup[it - 1]['qoi']
+        self._setup[it]['obs'] = np.copy(self._setup[it - 1]['obs'])
+        self._setup[it]['pre'] = np.copy(self._setup[it - 1]['pre'])
+        self._setup[it]['std'] = np.copy(self._setup[it - 1]['std'])
+        self._setup[it]['col'] = np.copy(self._setup[it - 1]['col'])
+        self._setup[it]['ind'] = np.copy(self._setup[it - 1]['ind'])
+        self._setup[it]['qoi'] = np.copy(self._setup[it - 1]['qoi'])
         pass
 
     def set_iteration(self, iteration=0):
@@ -3587,7 +3590,7 @@ class discretization(object):
                 logging.warn(msg)
                 # Return zeros as placeholder.
                 self.set_data_from_observed(iteration=iteration)
-
+                return self.get_data(iteration)
         else:  # (noisy) data is not None
             inds = self.get_data_indices(iteration)
             return self._output_probability_set._reference_value[inds]
@@ -3604,7 +3607,9 @@ class discretization(object):
             iteration = self._iteration
 
         dim = len(data)
+        obs = self.get_observed()  # set indices overwrites observed
         self.set_indices(inds, iteration)
+        self.set_observed(obs)  # and here we want to preserve it.
         if self._output_probability_set is None:
             logging.warn("Missing output probability set. Creating.")
             self._output_probability_set = sample_set(dim)
@@ -3646,6 +3651,8 @@ class discretization(object):
             iteration = self._iteration
         self._setup[iteration]['ind'] = inds
         self._setup[iteration]['pre'] = None
+        self._setup[iteration]['obs'] = None
+        logging.warn('Observed and Predicted entries cleared.')
 
     def get_data_indices(self, iteration=None):
         r"""
