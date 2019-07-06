@@ -545,36 +545,7 @@ class sampler(object):
                 new_ref_val = np.array(new_ref_val)
             new_ref_val = np.column_stack((Q_ref, new_ref_val)).ravel()
             new._output_sample_set.set_reference_value(new_ref_val)
-        
-        # Noisy (raw) data passed, no need for reference.
-        if disc._output_probability_set is not None:
-            if data is None:  # otherwise, append values
-                if new_data is not None:  # ref input must be specified
-                    Q_ref = disc._output_probability_set._reference_value
-                    # try to infer observed
-                    noise = disc._setup[disc._iteration]['obs']
-                    if noise is None:
-                        std = disc._setup[disc._iteration]['std']
-                        if std is None:
-                            raise AttributeError("Could not infer noise model")
-                        else:
-                            msg = "Missing noise model but std. dev. availeble."
-                            msg += "We will assume a Normal Distribution"
-                            logging.warn(msg)
-                            from scipy.stats import distributions
-                            noise = distributions.norm(scale=std)
-                    new_data += disc._output_probability_set.rvs(len(new_data),
-                                                             dist=noise)
-                    # add to noisy list
-                    ref = disc._output_probability_set._reference_value
-                    data = np.concatenate((ref, new_data), axis=1)
-            else:  # data that is passed is assumed to be noisy.
-                ref = disc._output_probability_set._reference_value
-                data = np.concatenate((ref, data), axis=1)
-            out_prob_set = sample.sample_set(num_old_obs + num_new_obs)
-            new.set_output_probability_set(out_prob_set)
-            new._output_probability_set.set_reference_value(data)
-
+       
         if globalize:
             new._output_sample_set.global_to_local()
 
@@ -592,6 +563,20 @@ class sampler(object):
                 num_new_obs) + num_old_obs
         else:  # if None, copy.
             new._setup[new._iteration]['ind'] = None
+
+        # Noisy (raw) data passed, no need for reference.
+        if disc._output_probability_set is not None:
+            out_prob_set = sample.sample_set(num_old_obs + num_new_obs)
+            new.set_output_probability_set(out_prob_set)
+            if data is None:  # otherwise, append values
+                if new_ref_val is not None:  # ref input must be specified
+                    new.set_data_from_observed()
+                else:
+                    logging.warn("Could not add data vector")
+            else:  # data that is passed is assumed to be noisy.
+                ref = disc._output_probability_set._reference_value
+                data = np.column_stack((ref, data)).ravel()
+            new._output_probability_set.set_reference_value(data)
 
         mdat = dict()
         if savefile is not None:
