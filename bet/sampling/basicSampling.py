@@ -509,7 +509,8 @@ class sampler(object):
         return self.compute_QoI_and_create_discretization(input_sample_set,
                                                           savefile, globalize)
 
-    def add_qoi(self, discretization, data=None, savefile=None, globalize=True):
+    def add_qoi(self, discretization, data=None,
+                savefile=None, globalize=True):
         """
         Add a column of data to the output sample set, update the
         reference parameter, dimension information.
@@ -534,7 +535,7 @@ class sampler(object):
         new._output_sample_set._dim = num_old_obs + num_new_obs
         new_outputs = new._output_sample_set._values  # reference
         old_outputs = disc._output_sample_set._values
- 
+
         new_outputs = np.column_stack((old_outputs, new_outputs))
         new._output_sample_set.set_values(new_outputs)
 
@@ -545,7 +546,7 @@ class sampler(object):
                 new_ref_val = np.array(new_ref_val)
             new_ref_val = np.column_stack((Q_ref, new_ref_val)).ravel()
             new._output_sample_set.set_reference_value(new_ref_val)
-       
+
         if globalize:
             new._output_sample_set.global_to_local()
 
@@ -581,5 +582,5 @@ class sampler(object):
         mdat = dict()
         if savefile is not None:
             self.save(mdat, savefile, new, globalize=globalize)
-        
+
         return new

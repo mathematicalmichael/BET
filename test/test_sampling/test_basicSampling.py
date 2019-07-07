@@ -185,8 +185,8 @@ def verify_compute_QoI_and_create_discretization(model, sampler,
 
 
 def verify_add_qoi(model, sampler,
-                    input_sample_set,
-                    savefile):
+                   input_sample_set,
+                   savefile):
     """
     Verify that the user samples are correct.
     """
@@ -207,7 +207,7 @@ def verify_add_qoi(model, sampler,
         input_sample_set, savefile, globalize=True)
     # check add_qoi
     my_discretization = sampler.add_qoi(my_discretization,
-                                         savefile=savefile, globalize=True)
+                                        savefile=savefile, globalize=True)
     # comm.barrier()
 
     my_num = my_discretization.check_nums()
@@ -870,7 +870,7 @@ class Test_basic_sampler(unittest.TestCase):
 
 class Test_basic_sampler_extended(Test_basic_sampler):
     """
-    Test model and output appending and reference 
+    Test model and output appending and reference
     values for :class:`bet.sampling.basicSampling.sampler`.
     """
 
@@ -984,5 +984,3 @@ class Test_basic_sampler_extended(Test_basic_sampler):
 
         for model, sampler, input_sample_set, savefile in test_list:
             verify_add_qoi(model, sampler, input_sample_set, savefile)
-
- 
