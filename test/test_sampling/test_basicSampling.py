@@ -235,6 +235,72 @@ def verify_add_qoi(model, sampler,
                               saved_disc._output_sample_set.get_values())
 
 
+def verify_add_qoi_with_data(model, sampler,
+                             input_sample_set,
+                             savefile):
+    """
+    Verify that the adding data and QoI is done correctly.
+    """
+    # evalulate the model at the samples directly
+    output_values = (np.column_stack([model(input_sample_set._values),
+                                      model(input_sample_set._values)]))
+
+    if len(output_values.shape) == 1:
+        output_sample_set = sample_set(1)
+        prob_set = sample_set(1)
+    else:
+        output_sample_set = sample_set(output_values.shape[1])
+        prob_set = sample_set(output_values.shape[1]//2)
+
+    output_sample_set.set_values(output_values)
+    discretization = disc(input_sample_set, output_sample_set)
+
+    # evaluate the model at the sample
+    print(savefile, input_sample_set.get_dim())
+    my_discretization = sampler.compute_QoI_and_create_discretization(
+        input_sample_set, savefile, globalize=True)
+
+    # set output_probability_set to not be empty (but with data)
+    my_discretization.set_output_probability_set(prob_set)
+    data_orig = np.random.rand(prob_set.get_dim())
+    my_discretization.set_data(data_orig)
+    data = np.random.rand(prob_set.get_dim())
+    # check add_qoi
+    my_discretization = sampler.add_qoi(my_discretization, data=data,
+                                        savefile=savefile, globalize=True)
+    # comm.barrier()
+
+    my_num = my_discretization.check_nums()
+
+    # compare the samples
+    MD = my_discretization
+    D = discretization
+    nptest.assert_array_equal(MD.get_input().get_values(),
+                              D.get_input().get_values())
+
+    # compare the data
+    nptest.assert_array_equal(MD.get_output().get_values(),
+                              D.get_output().get_values())
+
+    nptest.assert_array_equal(MD.get_data(),
+                              np.concatenate((data_orig, data)))
+
+    # did num_samples get updated?
+    assert my_num == sampler.num_samples
+
+    # did the file get correctly saved?
+    saved_disc = bet.sample.load_discretization(savefile)
+    mdat = sio.loadmat(savefile)
+    print("HERE HERE", mdat, my_num)
+    # comm.barrier()
+    # compare the samples
+    nptest.assert_array_equal(my_discretization._input_sample_set.get_values(),
+                              saved_disc._input_sample_set.get_values())
+    # compare the data
+    nptest.assert_array_equal(my_discretization._output_sample_set.get_values(),
+                              saved_disc._output_sample_set.get_values())
+
+
 def verify_create_random_discretization(model, sampler, sample_type, input_domain,
                                         num_samples, savefile):
 
@@ -983,4 +1049,5 @@ class Test_basic_sampler_extended(Test_basic_sampler):
                              self.savefiles))
 
         for model, sampler, input_sample_set, savefile in test_list:
-            verify_add_qoi(model, sampler, input_sample_set, savefile)
+            verify_add_qoi_with_data(
+                model, sampler, input_sample_set, savefile)

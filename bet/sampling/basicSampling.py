@@ -543,15 +543,12 @@ class sampler(object):
         new_ref_val = new._output_sample_set._reference_value
         if new_ref_val is not None:
             if not isinstance(new_ref_val, collections.Iterable):
-                new_ref_val = np.array(new_ref_val)
-            new_ref_val = np.column_stack((Q_ref, new_ref_val)).ravel()
+                new_ref_val = np.array(new_ref_val).ravel()
+            new_ref_val = np.concatenate((Q_ref.ravel(), new_ref_val))
             new._output_sample_set.set_reference_value(new_ref_val)
 
         if globalize:
             new._output_sample_set.global_to_local()
-
-        # TO-DO: appropriately set information for new sample set. anything
-        # that didn't carry over.
 
         new._iteration = discretization._iteration
         new._setup = discretization._setup.copy()
@@ -565,18 +562,23 @@ class sampler(object):
         else:  # if None, copy.
             new._setup[new._iteration]['ind'] = None
 
-        # Noisy (raw) data passed, no need for reference.
+        # Noisy (raw) data passed, no reference output value needed.
         if disc._output_probability_set is not None:
             out_prob_set = sample.sample_set(num_old_obs + num_new_obs)
             new.set_output_probability_set(out_prob_set)
             if data is None:  # otherwise, append values
                 if new_ref_val is not None:  # ref input must be specified
-                    new.set_data_from_observed()
+                    msg = "Setting data for new discretization"
+                    msg += "Using reference value and noise distribution."
+                    logging.warn(msg)
+                    new.set_data_from_reference()
                 else:
-                    logging.warn("Could not add data vector")
+                    msg = "No data and no reference output"
+                    msg += "for new output_probability_set."
+                    logging.warn(msg)
             else:  # data that is passed is assumed to be noisy.
                 ref = disc._output_probability_set._reference_value
-                data = np.column_stack((ref, data)).ravel()
+                data = np.concatenate((ref.ravel(), data.ravel()))
             new._output_probability_set.set_reference_value(data)
 
         mdat = dict()
