@@ -1990,7 +1990,7 @@ class Test_sampling_discretization(unittest.TestCase):
             assert np.linalg.norm(np.array(D.get_std()) -
                                   D.get_data().std()) == 0
             # change data
-            D.set_data(1+2*ref_val) 
+            D.set_data(1+2*ref_val)
             assert np.linalg.norm(np.array(D.get_std()) -
                                   D.get_data().std()) == 0
 
@@ -2050,8 +2050,8 @@ class Test_sampling_discretization(unittest.TestCase):
         D.set_noise_model(std * 2)  # double error level
         D.set_data_from_reference()
         assert np.max(np.abs(D.get_data() - ref_val)) < std * 12
-        
-        if D._setup[0]['model'] is not None: 
+
+        if D._setup[0]['model'] is not None:
             # recover missing output reference if input present.
             D._input_sample_set.set_reference_value(ref_val/2)
             D._output_sample_set._reference_value = None

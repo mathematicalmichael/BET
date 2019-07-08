@@ -279,7 +279,7 @@ class sample_set_base(object):
 
     #: List of global attribute names for attributes that are
     #: :class:`numpy.ndarray`
-    array_names = ['_values', '_volumes', '_probabilities', 
+    array_names = ['_values', '_volumes', '_probabilities',
                    '_densities', '_jacobians',
                    '_error_estimates', '_right', '_left', '_width',
                    '_kdtree_values', '_radii', '_normalized_radii',
@@ -3898,7 +3898,7 @@ class discretization(object):
         if (np.max(np.abs(dist.mean())) != 0):
             logging.warn("Non-homogeneous noise. Using random draw for data.")
             direct = True
-        if not direct: 
+        if not direct:
             noise = self._output_probability_set.rvs(dist=dist)
             Q_ref = Q_ref + noise
         else:  # if observed distribution is non-homogogenous
