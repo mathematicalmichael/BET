@@ -105,6 +105,7 @@ def prob(discretization, globalize=True):
     # Calculate Probabilities
     if discretization._input_sample_set._values_local is None:
         discretization._input_sample_set.global_to_local()
+
     P_local = np.zeros((len(discretization._io_ptr_local),))
     for i in range(op_num):
         if discretization._output_probability_set._probabilities[i] > 0.0:
@@ -175,6 +176,7 @@ def prob_from_sample_set_with_emulated_volumes(set_old, set_new,
     set_emulate.check_num()
     if (set_old._dim != set_new._dim) or (set_old._dim != set_emulate._dim):
         raise samp.dim_not_matching("Dimensions of sets are not equal.")
+
     # Localize emulated points
     if set_emulate._values_local is None:
         set_emulate.global_to_local()
@@ -200,6 +202,7 @@ def prob_from_sample_set_with_emulated_volumes(set_old, set_new,
                 prob_em[Itemp] += set_old._probabilities[i]/float(Itemp_sum)
             else:
                 warn = True
+
     # Warn that some cells have no emulated points in them
     if warn:
         msg = "Some old cells have no emulated points in them. "
@@ -208,6 +211,7 @@ def prob_from_sample_set_with_emulated_volumes(set_old, set_new,
         total_prob = np.sum(prob_em)
         total_prob = comm.allreduce(total_prob, op=MPI.SUM)
         prob_em = prob_em/total_prob
+
     # Loop over new cells and distribute probability from emulated cells
     for i in range(num_new):
         Itemp = np.equal(ptr2, i)
@@ -284,6 +288,7 @@ def prob_from_discretization_input(disc, set_new):
 
     if em_set._values_local is None:
         em_set.global_to_local()
+
     if em_set._probabilities_local is None:
         raise AttributeError("Probabilities must be pre-calculated.")
 

@@ -160,6 +160,20 @@ class Test_prob_3to2_no_volumes(TestProbMethod_3to2, prob):
         calcP.prob(self.disc)
         self.P_ref = np.loadtxt(data_path + "/3to2_prob.txt.gz")
 
+class Test_prob_3to2_global_to_local(TestProbMethod_3to2, prob):
+    """
+    Test :meth:`bet.calculateP.calculateP.prob` on 3 to 2 map without
+    explicitly defining volumes.
+    """
+
+    def setUp(self):
+        """
+        Set up problem.
+        """
+        super(Test_prob_3to2_global_to_local, self).setUp()
+        self.disc._input_sample_set._values_local = None
+        calcP.prob(self.disc)
+        self.P_ref = np.loadtxt(data_path + "/3to2_prob.txt.gz")
 
 class Test_prob_on_emulated_samples_3to2(TestProbMethod_3to2, prob_on_emulated_samples):
     """
