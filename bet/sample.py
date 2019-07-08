@@ -3666,17 +3666,12 @@ class discretization(object):
             iteration = self._iteration
 
         dim = len(data)
-        obs = self.get_observed()  # set indices overwrites observed
+        obs = self._setup[iteration]['obs']  # set indices overwrites observed
         self.set_indices(inds, iteration)
-        self.set_observed(obs)  # and here we want to preserve it.
+        self._setup[iteration]['obs'] = obs  # and here we want to preserve it.
         if self._output_probability_set is None:
             logging.warn("Missing output probability set. Creating.")
             self._output_probability_set = sample_set(dim)
-
-        if inds is None:
-            inds = np.arange(len(data))
-        else:
-            inds = self.get_data_indices(iteration)
 
         if self._output_probability_set._reference_value is None:
             self._output_probability_set._reference_value = np.copy(data)
@@ -3684,8 +3679,8 @@ class discretization(object):
             self._output_probability_set._reference_value[inds] = np.copy(data)
 
         if std is None:
-            if self._setup[self._iteration]['std'] is None:
-                if self._setup[self._iteration]['obs'] is None:
+            if self._setup[iteration]['std'] is None:
+                if self._setup[iteration]['obs'] is None:
                     logging.warn(
                         "No way to infer std. Will use sample variance.")
                     if len(self.get_data_indices(iteration)) == 1:
@@ -3874,17 +3869,25 @@ class discretization(object):
 
         # support repeating data.
         Q_ref = self._output_sample_set._reference_value
-
+        direct = False
         if Q_ref is None:
             logging.info("Problem with output reference value.")
             model = self._setup[iteration]['model']
             lam_ref = self._input_sample_set._reference_value
-            if lam_ref is not None:
+            if lam_ref is None:
+                msg = "Missing input reference value."
+                msg += "Using draw directly from observed distribution."
+                logging.warn(msg)
+                direct = True
+            else:
                 if model is None:
                     if dist is None:
                         raise AttributeError("Missing model and observed.")
                     else:
-                        logging.warn("Missing model. Using distribution.")
+                        msg = "Missing model but input reference value present."
+                        msg += "Using draw directly from observed distribution."
+                        logging.warn(msg)
+                        direct = True
                 else:
                     logging.info("Using model to map input reference value.")
                     Q_ref = model(lam_ref)[inds]
@@ -3892,11 +3895,13 @@ class discretization(object):
             # support repeated observations using indices. correct length.
             Q_ref = Q_ref[inds]
 
-        if np.max(np.abs(dist.mean())) == 0:
+        if (np.max(np.abs(dist.mean())) != 0):
+            logging.warn("Non-homogeneous noise. Using random draw for data.")
+            direct = True
+        if not direct: 
             noise = self._output_probability_set.rvs(dist=dist)
             Q_ref = Q_ref + noise
-        else:
-            logging.warn("Non-homogeneous noise. Using random draw for data.")
+        else:  # if observed distribution is non-homogogenous
             Q_ref = self._output_probability_set.rvs(dist=dist)
 
         self._output_probability_set._reference_value = Q_ref

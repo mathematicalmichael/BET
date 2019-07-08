@@ -1969,7 +1969,7 @@ class Test_sampling_discretization(unittest.TestCase):
         Test straight-forward data-setting.
         """
         D = self.disc.copy()
-        ref_val = 21 * np.ones(self.dim2)
+        ref_val = 21 * np.random.rand(self.dim2)
         # set manually
         D._output_probability_set._reference_value = np.copy(ref_val)
         nptest.assert_array_equal(D.get_data(), ref_val)
@@ -1977,6 +1977,7 @@ class Test_sampling_discretization(unittest.TestCase):
         # set using function
         D.set_data(ref_val)
         nptest.assert_array_equal(D.get_data(), ref_val)
+        # inherit std from observed
         D.set_observed()
         nptest.assert_array_equal(D.get_std(), np.ones(self.dim2))
         # test perturbation in-place
@@ -1986,6 +1987,10 @@ class Test_sampling_discretization(unittest.TestCase):
         if self.dim2 > 1:
             D._setup[0]['std'] = None
             D._setup[0]['obs'] = None
+            assert np.linalg.norm(np.array(D.get_std()) -
+                                  D.get_data().std()) == 0
+            # change data
+            D.set_data(1+2*ref_val) 
             assert np.linalg.norm(np.array(D.get_std()) -
                                   D.get_data().std()) == 0
 
@@ -2045,8 +2050,21 @@ class Test_sampling_discretization(unittest.TestCase):
         D.set_noise_model(std * 2)  # double error level
         D.set_data_from_reference()
         assert np.max(np.abs(D.get_data() - ref_val)) < std * 12
+        
+        if D._setup[0]['model'] is not None: 
+            # recover missing output reference if input present.
+            D._input_sample_set.set_reference_value(ref_val/2)
+            D._output_sample_set._reference_value = None
+            D.set_noise_model(std / 2)  # half error level
+            D.set_data_from_reference()
+            assert np.max(np.abs(D.get_data() - ref_val)) < std * 3
 
-        # TK - add more tests.
+        # use draw directly from observed if reference is empty
+        D._input_sample_set._reference_value = None
+        D._output_sample_set._reference_value = None
+        D.set_noise_model(std / 2)  # half error level
+        D.set_data_from_reference()
+        assert np.max(np.abs(D.get_data())) < std * 3
 
     def test_set_initial_no_model(self):
         """
