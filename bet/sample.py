@@ -721,7 +721,6 @@ class sample_set_base(object):
         mins = np.min(self._values, axis=0)
         maxes = np.max(self._values, axis=0)
         self._bounding_box = np.vstack((mins, maxes)).transpose()
-        pass
 
     def get_bounding_box(self):
         """
@@ -806,7 +805,6 @@ class sample_set_base(object):
 
         """
         self._probabilities = probabilities
-        pass
 
     def get_probabilities(self):
         """
@@ -833,7 +831,6 @@ class sample_set_base(object):
             probs = self._probabilities
             vols = self._volumes
             self._densities = probs/vols
-        pass
 
     def get_densities(self):
         """
@@ -930,7 +927,6 @@ class sample_set_base(object):
         if len(self._values_local.shape) > 1 and \
                 self._values_local.shape[1] != self._dim:
             raise dim_not_matching("dimension of values incorrect")
-        pass
 
     def set_kdtree(self):
         """
@@ -968,7 +964,6 @@ class sample_set_base(object):
 
         """
         self._volumes_local = volumes_local
-        pass
 
     def get_volumes_local(self):
         """
@@ -989,7 +984,6 @@ class sample_set_base(object):
 
         """
         self._probabilities_local = probabilities_local
-        pass
 
     def get_probabilities_local(self):
         """
@@ -1017,7 +1011,6 @@ class sample_set_base(object):
             probs = self._probabilities_local
             vols = self._volumes_local
             self._densities_local = probs/vols
-        pass
 
     def get_densities_local(self):
         """
@@ -1040,7 +1033,6 @@ class sample_set_base(object):
 
         """
         self._jacobians_local = jacobians_local
-        pass
 
     def get_jacobians_local(self):
         """
@@ -1061,7 +1053,6 @@ class sample_set_base(object):
 
         """
         self._error_estimates_local = error_estimates_local
-        pass
 
     def get_error_estimates_local(self):
         """
@@ -2134,8 +2125,6 @@ class rectangle_sample_set(sample_set_base):
         logging.warning(
             "Bounds cannot be updated for this type of sample set.")
 
-        pass
-
     def update_bounds_local(self, num_local=None):
         """
         Does nothing for this type of sample set.
@@ -2369,7 +2358,6 @@ class ball_sample_set(sample_set_base):
         """
         logging.warning(
             "Bounds cannot be updated for this type of sample set.")
-        pass
 
     def update_bounds_local(self, num_local=None):
         """
@@ -2378,7 +2366,6 @@ class ball_sample_set(sample_set_base):
         """
         logging.warning(
             "Bounds cannot be updated for this type of sample set.")
-        pass
 
     def query(self, x, k=1):
         """
