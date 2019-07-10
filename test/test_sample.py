@@ -1872,7 +1872,7 @@ class Test_sampling_discretization(unittest.TestCase):
         D.set_observed()
         D.set_data_from_observed()
         # nptest.assert_array_equal(D.get_data(), 2)
-        D.set_predicted()  # should be optional...
+        # D.set_predicted()  # should be optional...
 
         # evaluate on existing samples
         D.updated_pdf()
@@ -1939,6 +1939,7 @@ class Test_sampling_discretization(unittest.TestCase):
         # check validity of solution against (simple-function) analytical one
         assert np.max(updated_pdf[updated_pdf > 0] - 2**self.dim1) < 1E-14
         D.mud_index()
+        D.mud_point()
 
     def test_set_observed_no_reference(self):
         """

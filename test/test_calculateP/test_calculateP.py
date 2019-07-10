@@ -475,3 +475,30 @@ class Test_prob_from_sample_set(unittest.TestCase):
                                    emulated_input_sample_set=self.set_em)
         calcP.prob_from_discretization_input(disc, self.set_new)
         nptest.assert_almost_equal(self.set_new._probabilities, [0.25, 0.75])
+
+class Test_sampling_approach(unittest.TestCase, prob):
+    """
+    Test :method: `bet.sample.set_probabilities_from_densities()`
+    """
+    def setUp(self):
+        self.dim = 2
+        self.num = 100
+        def mymodel(input_values):
+            return input_values
+        sampler = bsam.sampler(mymodel)
+        input_set = samp.sample_set(2)
+        input_set.set_distribution()
+        input_set.generate_samples(num_samples = self.num)
+        disc = sampler.compute_QoI_and_create_discretization(input_set)
+        disc.set_observed('uni', loc=0, scale=[0.5, 0.5])
+        disc.set_predicted('uni', loc=[0,0])
+        #disc.set_probabilities_from_densities()
+        disc.set_prob_from_den()
+        self.inputs = disc.get_input()
+        self.outputs = disc.get_output()
+        P_ref = np.zeros(self.num)
+        P_ref[np.logical_and(disc.get_input_values()[:,0] < 0.5,
+                             disc.get_input_values()[:,1] < 0.5)] = 1
+        P_ref = P_ref/np.sum(P_ref)
+
+        self.P_ref = P_ref

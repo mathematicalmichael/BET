@@ -639,6 +639,31 @@ class sample_set_base(object):
         sset.set_kdtree()
         return sset
 
+    def clip_samples(self, inds):
+        """
+        Creates and returns a sample set with the the first `cnum`
+        entries of the sample set.
+
+        :param tuple inds: indices in sample set to return
+
+        :rtype: :class:`~bet.sample.sample_set`
+        :returns: the clipped sample set
+
+        """
+        sset = self.copy()
+        sset.check_num()
+        if sset._values is None:
+            sset.local_to_global()
+        for array_name in self.array_names:
+            current_array = getattr(sset, array_name)
+            if current_array is not None:
+                new_array = current_array[inds]
+                setattr(sset, array_name, new_array)
+        if sset._values_local is not None:
+            sset.global_to_local()
+        sset.set_kdtree()
+        return sset
+
     def check_num(self):
         """
 
@@ -776,7 +801,7 @@ class sample_set_base(object):
         """
         return self._domain
 
-    def set_volumes(self, volumes):
+    def set_volumes(self, volumes=None):
         """
         Sets sample cell volumes.
 
@@ -784,7 +809,16 @@ class sample_set_base(object):
         :param volumes: sample cell volumes
 
         """
-        self._volumes = volumes
+        if volumes is not None:
+            self._volumes = volumes
+        else:
+            logging.warn("Setting volumes with prob/density.")
+            dens = self._densities
+            probs = self._probabilities
+            if (dens is None) or (probs is None):
+                self._volumes = None
+            else:
+                self._volumes = probs/dens
 
     def get_volumes(self):
         """
@@ -796,7 +830,7 @@ class sample_set_base(object):
         """
         return self._volumes
 
-    def set_probabilities(self, probabilities):
+    def set_probabilities(self, probabilities=None):
         """
         Set sample probabilities.
 
@@ -804,7 +838,17 @@ class sample_set_base(object):
         :param probabilities: sample probabilities
 
         """
-        self._probabilities = probabilities
+        if probabilities is not None:
+            self._probabilities = probabilities
+        else:
+            logging.warn("Setting probabilities with density*volume.")
+            dens = self._densities
+            vols = self._volumes
+            if (dens is None) or (vols is None):
+                self._probabilities = None
+            else:
+                self._probabilities = dens*vols
+
 
     def get_probabilities(self):
         """
@@ -975,7 +1019,7 @@ class sample_set_base(object):
         """
         return self._volumes_local
 
-    def set_probabilities_local(self, probabilities_local):
+    def set_probabilities_local(self, probabilities_local=None):
         """
         Set sample local probabilities.
 
@@ -983,7 +1027,16 @@ class sample_set_base(object):
         :param probabilities_local: local sample probabilities
 
         """
-        self._probabilities_local = probabilities_local
+        if probabilities_local is not None:
+            self._probabilities_local = probabilities_local
+        else:
+            logging.warn("Setting probabilities with density*volume.")
+            dens = self._densities_local
+            vols = self._volumes_local
+            if (dens is None) or (vols is None):
+                self._probabilities_local = None
+            else:
+                self._probabilities_local = dens*vols
 
     def get_probabilities_local(self):
         """
@@ -1223,6 +1276,7 @@ class sample_set_base(object):
         Calculate the volumes of cells. Depends on sample set type.
 
         """
+        pass
 
     def set_distribution(self, dist=None, *args, **kwds):
         r"""
@@ -1245,6 +1299,16 @@ class sample_set_base(object):
             self._domain = np.array([[0, 1]] * self._dim)
         if isinstance(dist, scipy.stats.distributions.rv_frozen):
             self._distribution = dist
+        elif isinstance(dist, str):
+            if dist in ['uni', 'uniform']:
+                dist = scipy.stats.distributions.uniform
+            elif dist in ['norm', 'normal', 'gauss', 'gaussian']:
+                dist = scipy.stats.distributions.norm
+            elif dist in ['beta']:
+                dist = scipy.stats.distributions.beta
+            else:
+                raise AttributeError("Inappropriate dist specified.")
+            self._distribution = dist(*args, **kwds)
         else:
             self._distribution = dist(*args, **kwds)
         try:  # set domain based on distribution
@@ -2936,6 +3000,28 @@ class discretization(object):
                               emulated_input_sample_set=ei,
                               emulated_output_sample_set=eo)
 
+    def clip_samples(self, inds):
+        """
+        Creates and returns a discretization with samples indexed by
+        `inds`, of the input and output sample sets.
+
+        :param tuple inds: indices of values of sample set to return
+
+        :rtype: :class:`~bet.sample.discretization`
+        :returns: clipped discretization
+
+        """
+        ci = self._input_sample_set.clip(inds)
+        co = self._output_sample_set.clip(inds)
+        ps = self._output_probability_set
+        ei = self._emulated_input_sample_set
+        eo = self._emulated_output_sample_set
+        return discretization(input_sample_set=ci,
+                              output_sample_set=co,
+                              output_probability_set=ps,
+                              emulated_input_sample_set=ei,
+                              emulated_output_sample_set=eo)
+
     def merge(self, disc):
         """
         Merges a given discretization with this one by merging the input and
@@ -3246,6 +3332,8 @@ class discretization(object):
         if dist is None:
             from scipy.stats import gaussian_kde as gkde
             self._output_sample_set._distribution = gkde(data.T, *args, **kwds)
+        elif isinstance(dist, str):
+            self._output_sample_set.set_distribution(dist, *args, **kwds)
         else:
             self._output_sample_set._distribution = dist(data, *args, **kwds)
 
@@ -3390,9 +3478,11 @@ class discretization(object):
         if iteration is None:
             iteration = self._iteration
 
+        check_num = False
         if x is None:
             x = self._input_sample_set._values
             y = self._output_sample_set._values
+            check_num = True
         else:
             num = x.shape[0]
             y = np.empty((num, 0))  # temporary vector of correct shape
@@ -3407,11 +3497,38 @@ class discretization(object):
                     y = np.concatenate((y, z), axis=1)
 
         den = self.initial_pdf(x) * self.ratio_pdf(y)
-        if x is not None:
-            assert len(den) == x.shape[0]
-        else:
+        if check_num:
             assert len(den) == self.check_nums()
+            self._input_sample_set.set_densities(den)
+        else:
+            assert len(den) == x.shape[0]
         return den
+
+    def set_probabilities_from_densities(self):
+        """
+        """
+        dens = self.updated_pdf()
+        # initial probability is 1/N, density known.
+        vols = 1./(self.check_nums()*self.initial_pdf())
+        probs = dens*vols
+        self._input_sample_set.set_probabilities(probs/np.sum(probs))
+        self._input_sample_set.set_volumes(vols)
+
+    def set_prob_from_den(self):
+        return self.set_probabilities_from_densities()
+
+    def clip_accepted_samples(self):
+        """
+        Perform accept/reject and return a new sample set
+        containing only the subset of samples that
+        are distributed according to the updated density.
+        """
+        ratio = self.normalized_ratio()
+        num_samples = self.check_nums()
+        randnums = np.random.rand(num_samples) 
+        accept_inds = [i for i in range(num_samples)
+                       if ratio[i] > randnums[i] ]
+        return self.clip_samples(accept_inds)
 
     def mud_index(self, x=None, iteration=None):
         """
