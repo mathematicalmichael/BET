@@ -3138,16 +3138,6 @@ class discretization(object):
                               output_sample_set=output_ss)
         return disc
 
-    def local_to_global(self):
-        """
-        Call local_to_global for ``input_sample_set`` and
-        ``output_sample_set``.
-        """
-        if self._input_sample_set is not None:
-            self._input_sample_set.local_to_global()
-        if self._output_sample_set is not None:
-            self._output_sample_set.local_to_global()
-
     def likelihood(self, x=None):
         L = self._output_probability_set._distribution
         flip = False
@@ -4110,35 +4100,3 @@ class discretization(object):
             self._setup[self._iteration] = D
         except TypeError:
             self._setup = {0: D}
-
-    def set_initial_densities(self):
-        r"""
-        TK. Hot mess. fix it up.
-        """
-        if self._input_sample_set._values is None:
-            raise AttributeError("Missing values.")
-        # sample-based approach
-        if self.get_initial_distribution() is not None:
-            self._initial_densities_local = self.initial_pdf(
-                self._values_local)
-            self._initial_probabilities_local = \
-                self._initial_densities_local * self._volumes_local
-        else:
-            if self._input_sample_set._probabilities is not None:
-                # use probabilities and volumes to infer densities
-                den_local = np.divide(self._input_sample_set.
-                                      _probabilities_local,
-                                      self._input_sample_set.
-                                      _volumes_local)
-                self._initial_densities_local = den_local
-            else:
-                vol_sum = np.sum(self._input_sample_set._volumes_local)
-                vol_sum = comm.allreduce(vol_sum, op=MPI.SUM)
-                # standard ansatz
-                prob_local = self._input_sample_set._volumes_local / vol_sum
-                self._initial_probabilities_local = prob_local
-                self._initial_densities_local = 1.0 / vol_sum
-        self._initial_densities = util.get_global_values(
-            self._initial_densities_local)
-        self._initial_probabilities = util.get_global_values(
-            self._initial_probabilities_local)
