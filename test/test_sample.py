@@ -1832,7 +1832,7 @@ class Test_sampling_discretization(unittest.TestCase):
 
     def setUp(self):
         self.dim1 = 3
-        self.num = 100
+        self.num = 200
         self.dim2 = 2
         values1 = np.random.rand(self.num, self.dim1)
         values2 = np.random.randn(self.num, self.dim2)
@@ -2263,13 +2263,13 @@ class Test_sampling_discretization(unittest.TestCase):
                                    scale=[1] * self.dim1))  # uniform [0,1]
         D.set_observed(dist.norm(loc=[0.5] * self.dim2,
                                  scale=[0.1] * self.dim2))
-        D.set_predicted(dist.uniform(loc=[0] * self.dim2,
-                                     scale=[2] * self.dim2))
-        # D.set_data([0.5])
+        #D.set_predicted(dist.uniform(loc=[0] * self.dim2,
+        #                             scale=[2] * self.dim2))
         mud_point = D.mud_point()
         D.set_likelihood()
         map_point = D.map_point()
-        nptest.assert_array_equal(mud_point, map_point)
+        assert np.linalg.norm(mud_point-map_point)/np.linalg.norm(map_point) < 0.05
+        #nptest.assert_array_equal(mud_point, map_point)
 
     def test_shorthand(self):
         """
@@ -2437,11 +2437,12 @@ class Test_sampling_data_driven(Test_sampling_discretization):
 
         mud_point = D.mud_point()
         # set_output_probability_set
-        D.set_observed(scale=[self.std] * self.dim2)
+        #D.set_observed(scale=[self.std] * self.dim2)
+        D.set_noise_model(self.std)
         D.set_likelihood()
         map_point = D.map_point()
-        nptest.assert_array_almost_equal(mud_point, map_point, 1)
-        assert np.abs(mud_point-map_point)/np.linalg.norm(map_point) < 0.05
+        nptest.assert_array_almost_equal(mud_point, map_point, 2)
+        assert np.linalg.norm(mud_point-map_point)/np.linalg.norm(map_point) < 0.05
 
 
 class Test_sampling_data_driven_alt(Test_sampling_data_driven):
