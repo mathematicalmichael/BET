@@ -849,7 +849,6 @@ class sample_set_base(object):
             else:
                 self._probabilities = dens*vols
 
-
     def get_probabilities(self):
         """
         Returns sample probabilities.
@@ -3077,12 +3076,6 @@ class discretization(object):
 
         disc = discretization(input_sample_set=self._input_sample_set,
                               output_sample_set=output_ss)
-        # keep track of previous sample sets for iterated solutions
-        # since we will need to access the kde objects from each solve.
-        if hasattr(disc, '_previous_outputs'):
-            disc._previous_outputs.append(self._output_sample_set)
-        else:
-            disc._previous_outputs = [self._output_sample_set]
         return disc
 
     def choose_inputs_outputs(self,
@@ -3525,9 +3518,9 @@ class discretization(object):
         """
         ratio = self.normalized_ratio()
         num_samples = self.check_nums()
-        randnums = np.random.rand(num_samples) 
+        randnums = np.random.rand(num_samples)
         accept_inds = [i for i in range(num_samples)
-                       if ratio[i] > randnums[i] ]
+                       if ratio[i] > randnums[i]]
         return self.clip_samples(accept_inds)
 
     def mud_index(self, x=None, iteration=None):

@@ -660,6 +660,14 @@ class Test_discretization_simple(unittest.TestCase):
             np.ones((self.num, self.dim2)))
         self.disc._input_sample_set.set_jacobians(
             np.ones((self.num, self.dim2, self.dim1)))
+        self.disc._input_sample_set.set_reference_value(
+            np.random.rand(self.dim1))
+        self.disc._output_sample_set.set_reference_value(
+            np.random.rand(self.dim2))
+        self.disc._output_sample_set.set_domain(
+            np.sort(np.random.rand(self.dim2, 2), axis=1))
+        self.disc._input_sample_set.set_domain(
+            np.sort(np.random.rand(self.dim1, 2), axis=1))
 
         disc_new = self.disc.choose_inputs_outputs(inputs=[0, 2], outputs=[0])
         nptest.assert_array_equal(self.disc._input_sample_set.
@@ -674,6 +682,52 @@ class Test_discretization_simple(unittest.TestCase):
                                   _error_estimates)
         self.assertEqual(
             disc_new._input_sample_set._jacobians.shape, (self.num, 1, 2))
+        nptest.assert_array_equal(
+            disc_new._input_sample_set._reference_value,
+            self.disc._input_sample_set._reference_value[[0, 2]])
+        nptest.assert_array_equal(
+            disc_new._output_sample_set._reference_value,
+            self.disc._output_sample_set._reference_value[0])
+        nptest.assert_array_equal(
+            disc_new._input_sample_set._domain,
+            self.disc._input_sample_set._domain[[0, 2], :])
+        nptest.assert_array_equal(
+            disc_new._output_sample_set._domain,
+            self.disc._output_sample_set._domain[[0], :])
+
+    def test_choose_outputs(self):
+        """
+        Test `bet.sample.discretization.choose_outputs`
+        """
+        self.disc._output_sample_set.set_domain(
+            np.sort(np.random.rand(self.dim2, 2), axis=1))
+        self.disc._output_sample_set.set_reference_value(
+            np.random.rand(self.dim2))
+        self.disc._output_sample_set.set_error_estimates(
+            np.ones((self.num, self.dim2)))
+        self.disc._input_sample_set.set_jacobians(
+            np.ones((self.num, self.dim2, self.dim1)))
+
+        disc_new = self.disc.choose_outputs(outputs=[0])
+        nptest.assert_array_equal(self.disc._input_sample_set.
+                                  _values,
+                                  disc_new._input_sample_set._values)
+        nptest.assert_array_equal(self.disc._output_sample_set.
+                                  _values[:, [0]],
+                                  disc_new._output_sample_set._values)
+        nptest.assert_array_equal(self.disc._output_sample_set.
+                                  _error_estimates[:, [0]],
+                                  disc_new._output_sample_set.
+                                  _error_estimates)
+        nptest.assert_array_equal(
+            disc_new._output_sample_set._domain,
+            self.disc._output_sample_set._domain[[0], :])
+        nptest.assert_array_equal(
+            disc_new._output_sample_set._reference_value,
+            self.disc._output_sample_set._reference_value[0])
+        nptest.assert_array_equal(
+            disc_new._input_sample_set._jacobians,
+            self.disc._input_sample_set._jacobians)
 
     def test_set_io_ptr(self):
         """
