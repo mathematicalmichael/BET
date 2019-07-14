@@ -2419,7 +2419,6 @@ class Test_sampling_data_driven(Test_sampling_discretization):
     def test_likelihood(self):
         """
         Test likelihood function with data-driven.
-        D = self.disc
         """
         D = self.disc
 
@@ -2430,7 +2429,7 @@ class Test_sampling_data_driven(Test_sampling_discretization):
                 return 2 * input_values[np.arange(self.dim2) % self.dim1]
 
         D.set_model(mymodel)
-        D.set_initial(dist.norm(loc=[0] * self.dim1,
+        D.set_initial(dist.uniform(loc=[0] * self.dim1,
                                 scale=[1] * self.dim1))
 
         D.set_data([0.5] * self.dim2 + self.std * np.random.randn(self.dim2))
