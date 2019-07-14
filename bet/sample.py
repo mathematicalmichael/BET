@@ -3731,7 +3731,7 @@ class discretization(object):
             if self._output_sample_set._reference_value is not None:
                 return self._output_sample_set._reference_value[inds]
             else:
-                msg = "Output reference is None."
+                msg = "Output reference is None. "
                 msg += "Will use mean of observed as reference data!"
                 logging.warn(msg)
                 # Return zeros as placeholder.
@@ -3753,9 +3753,7 @@ class discretization(object):
             iteration = self._iteration
 
         dim = len(data)
-        obs = self._setup[iteration]['obs']  # set indices overwrites observed
-        self.set_indices(inds, iteration)
-        self._setup[iteration]['obs'] = obs  # and here we want to preserve it.
+        self._setup[iteration]['ind'] = inds  # and here we want to preserve it.
         if self._output_probability_set is None:
             logging.warn("Missing output probability set. Creating.")
             self._output_probability_set = sample_set(dim)
@@ -3763,7 +3761,11 @@ class discretization(object):
         if self._output_probability_set._reference_value is None:
             self._output_probability_set._reference_value = np.copy(data)
         else:
-            self._output_probability_set._reference_value[inds] = np.copy(data)
+            inds = self.get_data_indices(iteration)
+            if len(inds) != dim:
+                raise ValueError('Indices do not match data length.')
+            else:
+                self._output_probability_set._reference_value[self.get_data_indices()] = np.copy(data)
 
         if std is None:
             if self._setup[iteration]['std'] is None:
@@ -3780,9 +3782,10 @@ class discretization(object):
                 logging.warn("No std provided. Using existing entry in setup.")
         else:
             self._setup[iteration]['std'] = std
-        # clear predicted since we just changed indices, data, or std, all
-        # of which are part of the QoI model definition.
-        self._setup[iteration]['pre'] = None
+        if self._setup[iteration]['col']:
+            # clear predicted since we just changed indices, data, or std, all
+            # of which are part of the QoI model definition.
+            self._setup[iteration]['pre'] = None
 
     def set_indices(self, inds, iteration=None):
         r"""
@@ -3938,8 +3941,12 @@ class discretization(object):
         elif obs == 'max':
             data = obs_dist.interval(alpha)[1]
         std = obs_dist.std()
+        self._setup[iteration]['std'] = std
 
-        self.set_data(data, std=std, iteration=iteration)
+        if self._output_probability_set._reference_value is None:
+            self._output_probability_set._reference_value = np.copy(data)
+        else:
+            self._output_probability_set._reference_value[self.get_data_indices(iteration)] = np.copy(data)
 
     def set_data_from_reference(self, iteration=None, dist=None):
         # goes and grabs the reference output value for a particular iteration
