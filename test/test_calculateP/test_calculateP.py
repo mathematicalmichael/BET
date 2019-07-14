@@ -490,6 +490,7 @@ class Test_sampling_approach(unittest.TestCase, prob):
 
         def mymodel(input_values):
             return input_values
+
         sampler = bsam.sampler(mymodel)
         input_set = samp.sample_set(2)
         input_set.set_distribution()
