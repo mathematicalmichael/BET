@@ -2381,7 +2381,8 @@ class Test_sampling_data_driven(Test_sampling_discretization):
         D.set_model(mymodel)
         D.set_initial(dist.uniform(loc=[0] * self.dim1,
                                    scale=[1] * self.dim1))  # uniform [0,1]
-
+        D.set_predicted(dist.uniform(loc=[0] * self.dim2,
+                                     scale=[1] * self.dim2))
         updated_pdf = D.updated_pdf()
 
         # check that correct samples received positive probability
