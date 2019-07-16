@@ -137,7 +137,7 @@ def load_sample_set(file_name, sample_set_name=None, localize=True):
     if file_name.startswith('proc_'):
         localize = False
     elif not os.path.exists(file_name) and os.path.exists(os.path.join(
-            os.path.dirname(file_name), "proc{}_0".format(
+            os.path.dirname(file_name), "proc0_{}".format(
                 os.path.basename(file_name)))):
         return load_sample_set_parallel(file_name, sample_set_name)
 
@@ -211,6 +211,7 @@ def load_sample_set_parallel(file_name, sample_set_name=None):
         # Determine how many processors the previous data used
         # otherwise gather the data from mdat and then scatter
         # among the processors and update mdat
+        
         mdat_files_local = comm.scatter(mdat_files)
         mdat_local = [sio.loadmat(m) for m in mdat_files_local]
         mdat_list = comm.allgather(mdat_local)
@@ -1358,7 +1359,7 @@ class sample_set_base(object):
             except ValueError:
                 return dist.rvs(size=(num, 1))
 
-    def generate_samples(self, num_samples=None, globalize=True,
+    def generate_samples(self, num_samples=None, globalize=False,
                          dist=None, *args, **kwds):
         """
         Generate i.i.d samples according to distribution
@@ -1366,8 +1367,8 @@ class sample_set_base(object):
         if num_samples is None:
             num_samples = self.check_num()
         # define local number of samples
-        num_samples_local = int((num_samples / comm.size) +
-                                (comm.rank < num_samples % comm.size))
+        num_samples_local = (num_samples // comm.size) +\
+                                int(comm.rank < num_samples % comm.size)
         self.set_values_local(self.rvs(num_samples_local,
                                        dist, *args, **kwds))
         self.update_bounds_local()
@@ -1376,7 +1377,7 @@ class sample_set_base(object):
         self._jacobians_local = None
         comm.barrier()
 
-        if globalize:
+        if not globalize:
             self.local_to_global()
         else:
             self._values = None
