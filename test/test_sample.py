@@ -2381,8 +2381,6 @@ class Test_sampling_data_driven(Test_sampling_discretization):
         D.set_model(mymodel)
         D.set_initial(dist.uniform(loc=[0] * self.dim1,
                                    scale=[1] * self.dim1))  # uniform [0,1]
-        D.set_predicted(dist.uniform(loc=[0] * self.dim2,
-                                     scale=[1] * self.dim2))
         updated_pdf = D.updated_pdf()
 
         # check that correct samples received positive probability
@@ -2391,7 +2389,7 @@ class Test_sampling_data_driven(Test_sampling_discretization):
         nptest.assert_array_equal(
             pos_vals > 0.5 - self.std * 3,
             True)  # greater than
-        # check validity of solution against
+        # check validity of solution against # TK - SOMETIMES FAILS
         assert np.abs(D.mud_point() - 0.5) < 1E-2
 
     def test_set_predicted(self):
