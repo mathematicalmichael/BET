@@ -242,8 +242,10 @@ def load_sample_set_parallel(file_name, sample_set_name=None):
         # instead of a list of lists, create a list of mdat
         for mlist in mdat_list:
             mdat_global.append(mlist)
-
-        if sample_set_name + "_dim" in list(mdat_global[0].keys()):
+        
+        # set attributes that are not vectors (distributions)
+        mdat_keys = list(mdat_global[0].keys())
+        if sample_set_name + "_dim" in mdat_keys:
             loaded_set = eval(mdat_global[0][sample_set_name +
                                              '_sample_set_type'][0])(
                 np.int(np.squeeze(mdat_global[0][sample_set_name + "_dim"])))
@@ -251,11 +253,22 @@ def load_sample_set_parallel(file_name, sample_set_name=None):
             logging.info("No sample_set named {} with _dim in file".
                          format(sample_set_name))
             return None
-
+        
+        if sample_set_name + '_dist_type' in mdat_keys:
+            kwds = {}
+            # extract keywords from mdat
+            kwd_keys = [k for k in mdat_keys if 'kwds' in k]
+            # build dictionary
+            for key in kwd_keys:
+                newkey = key.replace('dist_kwds','').replace(sample_set_name,'').replace('_','')
+                kwds[newkey] = mdat_global[0][key][0]
+            dist = eval(mdat_global[0][sample_set_name + '_dist_type'][0])(**kwds)
+            loaded_set.set_distribution(dist)
+            
         # load attributes
         for attrname in loaded_set.vector_names:
             if attrname is not '_dim':
-                if sample_set_name + attrname in list(mdat_global[0].keys()):
+                if sample_set_name + attrname in mdat_keys:
                     # create lists of local data
                     if attrname.endswith('_local'):
                         temp_input = []
@@ -269,7 +282,7 @@ def load_sample_set_parallel(file_name, sample_set_name=None):
                                                 [sample_set_name + attrname])
                     setattr(loaded_set, attrname, temp_input)
         for attrname in loaded_set.all_ndarray_names:
-            if sample_set_name + attrname in list(mdat_global[0].keys()):
+            if sample_set_name + attrname in mdat_keys:
                 if attrname.endswith('_local'):
                     # create lists of local data
                     temp_input = []
