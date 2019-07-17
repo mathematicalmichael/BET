@@ -105,6 +105,15 @@ def save_sample_set(save_set, file_name,
             new_mdat.pop(sample_set_name + attrname)
     new_mdat[sample_set_name + '_sample_set_type'] = \
         str(type(save_set)).split("'")[1]
+    dist = save_set.get_dist()
+    if dist is not None:
+        kwds = dist.kwds
+        for kwd in kwds.keys():
+            new_mdat[sample_set_name + '_dist_kwds_' + kwd] = \
+                kwds[kwd]
+            print('saved %s'%kwd)
+        new_mdat[sample_set_name + '_dist_type'] = \
+            str(save_set.get_dist().dist).split(' ')[0].replace('<','').replace('_gen','').replace('_continuous_distns.','')
     comm.barrier()
 
     # save new file or append to existing file
@@ -144,10 +153,20 @@ def load_sample_set(file_name, sample_set_name=None, localize=True):
     mdat = sio.loadmat(file_name)
     if sample_set_name is None:
         sample_set_name = 'default'
-
-    if sample_set_name + "_dim" in list(mdat.keys()):
+    mdat_keys = list(mdat.keys())
+    if sample_set_name + "_dim" in mdat_keys:
         loaded_set = eval(mdat[sample_set_name + '_sample_set_type'][0])(
-            np.squeeze(mdat[sample_set_name + "_dim"]))
+            np.int(np.squeeze(mdat[sample_set_name + "_dim"])))
+        if sample_set_name + '_dist_type' in mdat_keys:
+            kwds = {}
+            # extract keywords from mdat
+            kwd_keys = [k for k in mdat_keys if 'kwds' in k]
+            # build dictionary
+            for key in kwd_keys:
+                newkey = key.replace('dist_kwds','').replace(sample_set_name,'').replace('_','')
+                kwds[newkey] = mdat[key][0]
+            dist = eval(mdat[sample_set_name + '_dist_type'][0])(**kwds)
+            loaded_set.set_distribution(dist)
     else:
         logging.info("No sample_set named {} with _dim in file".
                      format(sample_set_name))
@@ -155,11 +174,11 @@ def load_sample_set(file_name, sample_set_name=None, localize=True):
 
     for attrname in loaded_set.vector_names:
         if attrname is not '_dim':
-            if sample_set_name + attrname in list(mdat.keys()):
+            if sample_set_name + attrname in mdat_keys:
                 setattr(loaded_set, attrname,
                         np.squeeze(mdat[sample_set_name + attrname]))
     for attrname in loaded_set.all_ndarray_names:
-        if sample_set_name + attrname in list(mdat.keys()):
+        if sample_set_name + attrname in mdat_keys:
             setattr(loaded_set, attrname, mdat[sample_set_name + attrname])
 
     if localize:
@@ -211,19 +230,23 @@ def load_sample_set_parallel(file_name, sample_set_name=None):
         # Determine how many processors the previous data used
         # otherwise gather the data from mdat and then scatter
         # among the processors and update mdat
-        
-        mdat_files_local = comm.scatter(mdat_files)
-        mdat_local = [sio.loadmat(m) for m in mdat_files_local]
-        mdat_list = comm.allgather(mdat_local)
+        try: 
+            mdat_files_local = comm.scatter(mdat_files)
+            mdat_local = [sio.loadmat(m) for m in mdat_files_local]
+            mdat_list = comm.allgather(mdat_local)
+        except ValueError:
+            mdat_files_local = mdat_files
+            mdat_local = [sio.loadmat(m) for m in mdat_files_local]
+            mdat_list = mdat_local
         mdat_global = []
         # instead of a list of lists, create a list of mdat
         for mlist in mdat_list:
-            mdat_global.extend(mlist)
+            mdat_global.append(mlist)
 
         if sample_set_name + "_dim" in list(mdat_global[0].keys()):
             loaded_set = eval(mdat_global[0][sample_set_name +
                                              '_sample_set_type'][0])(
-                np.squeeze(mdat_global[0][sample_set_name + "_dim"]))
+                np.int(np.squeeze(mdat_global[0][sample_set_name + "_dim"])))
         else:
             logging.info("No sample_set named {} with _dim in file".
                          format(sample_set_name))
@@ -260,7 +283,7 @@ def load_sample_set_parallel(file_name, sample_set_name=None):
 
         # re-localize if necessary
         loaded_set.local_to_global()
-
+        return loaded_set
 
 class sample_set_base(object):
     """
@@ -1294,18 +1317,18 @@ class sample_set_base(object):
         Pass any additional keyword arguments to ``dist`` that are required.
         """
         if dist is None:
-            from scipy.stats.distributions import uniform
+            from scipy.stats import uniform
             dist = uniform
             self._domain = np.array([[0, 1]] * self._dim)
         if isinstance(dist, scipy.stats.distributions.rv_frozen):
             self._distribution = dist
         elif isinstance(dist, str):
             if dist in ['uni', 'uniform']:
-                dist = scipy.stats.distributions.uniform
+                dist = scipy.stats.uniform
             elif dist in ['norm', 'normal', 'gauss', 'gaussian']:
-                dist = scipy.stats.distributions.norm
+                dist = scipy.stats.norm
             elif dist in ['beta']:
-                dist = scipy.stats.distributions.beta
+                dist = scipy.stats.beta
             else:
                 raise AttributeError("Inappropriate dist specified.")
             self._distribution = dist(*args, **kwds)
