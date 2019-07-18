@@ -493,7 +493,7 @@ class Test_sampling_approach(unittest.TestCase, prob):
 
         sampler = bsam.sampler(mymodel)
         input_set = samp.sample_set(2)
-        input_set.set_distribution()
+        input_set.set_distribution('uni')
         input_set.generate_samples(num_samples=self.num)
         disc = sampler.compute_QoI_and_create_discretization(input_set)
         disc.set_observed('uni', loc=0, scale=[0.5, 0.5])
