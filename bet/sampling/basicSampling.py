@@ -125,7 +125,7 @@ def random_sample_set(sample_type, input_obj, num_samples,
     elif sample_type == "random" or "r":
         # define local number of samples
         num_samples_local = (num_samples // comm.size) +\
-                                int(comm.rank < num_samples % comm.size)
+            int(comm.rank < num_samples % comm.size)
         # update the bounds based on the number of samples
         input_sample_set.update_bounds_local(num_samples_local)
         input_values_local = np.copy(input_sample_set._width_local)
@@ -256,10 +256,10 @@ class sampler(object):
         self.error_estimates = error_estimates
         self.jacobians = jacobians
 
-    def set_num_samples(self, num_samples:int):
+    def set_num_samples(self, num_samples: int):
         """
         Overwrite `num_samples`, the default value for sample size.
-        
+
         :param int num_samples: Number of samples for sample-set objects.
         """
         self.num_samples = num_samples

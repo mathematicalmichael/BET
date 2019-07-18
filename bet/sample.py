@@ -111,9 +111,10 @@ def save_sample_set(save_set, file_name,
         for kwd in kwds.keys():
             new_mdat[sample_set_name + '_dist_kwds_' + kwd] = \
                 kwds[kwd]
-            print('saved %s'%kwd)
+            print('saved %s' % kwd)
         new_mdat[sample_set_name + '_dist_type'] = \
-            str(save_set.get_dist().dist).split(' ')[0].replace('<','').replace('_gen','').replace('_continuous_distns.','')
+            str(save_set.get_dist().dist).split(' ')[0].replace(
+                '<', '').replace('_gen', '').replace('_continuous_distns.', '')
     comm.barrier()
 
     # save new file or append to existing file
@@ -163,7 +164,8 @@ def load_sample_set(file_name, sample_set_name=None, localize=True):
             kwd_keys = [k for k in mdat_keys if 'kwds' in k]
             # build dictionary
             for key in kwd_keys:
-                newkey = key.replace('dist_kwds','').replace(sample_set_name,'').replace('_','')
+                newkey = key.replace('dist_kwds', '').replace(
+                    sample_set_name, '').replace('_', '')
                 kwds[newkey] = mdat[key][0]
             dist = eval(mdat[sample_set_name + '_dist_type'][0])(**kwds)
             loaded_set.set_distribution(dist)
@@ -230,7 +232,7 @@ def load_sample_set_parallel(file_name, sample_set_name=None):
         # Determine how many processors the previous data used
         # otherwise gather the data from mdat and then scatter
         # among the processors and update mdat
-        try: 
+        try:
             mdat_files_local = comm.scatter(mdat_files)
             mdat_local = [sio.loadmat(m) for m in mdat_files_local]
             mdat_list = comm.allgather(mdat_local)
@@ -242,7 +244,7 @@ def load_sample_set_parallel(file_name, sample_set_name=None):
         # instead of a list of lists, create a list of mdat
         for mlist in mdat_list:
             mdat_global.append(mlist)
-        
+
         # set attributes that are not vectors (distributions)
         mdat_keys = list(mdat_global[0].keys())
         if sample_set_name + "_dim" in mdat_keys:
@@ -253,18 +255,20 @@ def load_sample_set_parallel(file_name, sample_set_name=None):
             logging.info("No sample_set named {} with _dim in file".
                          format(sample_set_name))
             return None
-        
+
         if sample_set_name + '_dist_type' in mdat_keys:
             kwds = {}
             # extract keywords from mdat
             kwd_keys = [k for k in mdat_keys if 'kwds' in k]
             # build dictionary
             for key in kwd_keys:
-                newkey = key.replace('dist_kwds','').replace(sample_set_name,'').replace('_','')
+                newkey = key.replace('dist_kwds', '').replace(
+                    sample_set_name, '').replace('_', '')
                 kwds[newkey] = mdat_global[0][key][0]
-            dist = eval(mdat_global[0][sample_set_name + '_dist_type'][0])(**kwds)
+            dist = eval(
+                mdat_global[0][sample_set_name + '_dist_type'][0])(**kwds)
             loaded_set.set_distribution(dist)
-            
+
         # load attributes
         for attrname in loaded_set.vector_names:
             if attrname is not '_dim':
@@ -297,6 +301,7 @@ def load_sample_set_parallel(file_name, sample_set_name=None):
         # re-localize if necessary
         loaded_set.local_to_global()
         return loaded_set
+
 
 class sample_set_base(object):
     """
@@ -1404,7 +1409,7 @@ class sample_set_base(object):
             num_samples = self.check_num()
         # define local number of samples
         num_samples_local = (num_samples // comm.size) +\
-                                int(comm.rank < num_samples % comm.size)
+            int(comm.rank < num_samples % comm.size)
         self.set_values_local(self.rvs(num_samples_local,
                                        dist, *args, **kwds))
         if dist is not None:
@@ -3264,17 +3269,17 @@ class discretization(object):
         If dist=None and num is not None, then just re-generate
         samples and map outputs using existing distribution.
         """
-        
+
         if num is None:
             num = self._input_sample_set.check_num()
-                
+
         if dist is None:
             if self._input_sample_set._distribution is None:
                 logging.warning("Assuming independent Gaussian.")
                 self._input_sample_set.set_distribution()
             else:  # do not change existing distribution.
                 pass
-        else: # if a new distribution is specified, re-generate samples
+        else:  # if a new distribution is specified, re-generate samples
             self._input_sample_set.set_distribution(dist, *args, **kwds)
         if gen:
             self._input_sample_set.generate_samples(num)
@@ -3358,7 +3363,6 @@ class discretization(object):
         Wrapper for ``set_observed_distribution``
         """
         return self.set_observed_distribution(dist, iteration, *args, **kwds)
-
 
     def compute_pushforward(self, dist=None, iteration=None, *args, **kwds):
         # avoid accept/reject if possible
@@ -3815,7 +3819,7 @@ class discretization(object):
             iteration = self._iteration
 
         dim = len(data)
-        self._setup[iteration]['ind'] = inds  # and here we want to preserve it.
+        self._setup[iteration]['ind'] = inds
         if self._output_probability_set is None:
             logging.warn("Missing output probability set. Creating.")
             self._output_probability_set = sample_set(dim)
@@ -3827,7 +3831,8 @@ class discretization(object):
             if len(inds) != dim:
                 raise ValueError('Indices do not match data length.')
             else:
-                self._output_probability_set._reference_value[self.get_data_indices()] = np.copy(data)
+                self._output_probability_set._reference_value[self.get_data_indices()] = np.copy(
+                    data)
 
         if std is None:
             if self._setup[iteration]['std'] is None:
@@ -4008,7 +4013,8 @@ class discretization(object):
         if self._output_probability_set._reference_value is None:
             self._output_probability_set._reference_value = np.copy(data)
         else:
-            self._output_probability_set._reference_value[self.get_data_indices(iteration)] = np.copy(data)
+            self._output_probability_set._reference_value[self.get_data_indices(
+                iteration)] = np.copy(data)
 
     def set_data_from_reference(self, iteration=None, dist=None):
         # goes and grabs the reference output value for a particular iteration
