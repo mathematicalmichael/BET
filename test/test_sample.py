@@ -2129,14 +2129,14 @@ class Test_sampling_discretization(unittest.TestCase):
         D = self.disc
         D.set_initial()
         assert isinstance(D.get_initial().dist,
-                          sstats._continuous_distns.uniform_gen)
+                          sstats._continuous_distns.norm_gen)
         assert D.get_output_values().size == 0
         # test that re-setting initial works as expected (deletes output
         # values)
-        D.set_initial(dist.norm)
+        D.set_initial(dist.uniform)
         assert D.get_output_values().size == 0
         assert isinstance(D.get_initial().dist,
-                          sstats._continuous_distns.norm_gen)
+                          sstats._continuous_distns.uniform_gen)
         D.set_initial(dist.norm(loc=np.zeros(self.dim1)))
         assert D.get_output_values().size == 0
         assert isinstance(D.get_initial().dist,
@@ -2166,16 +2166,15 @@ class Test_sampling_discretization(unittest.TestCase):
             D.set_model(mymodel)
             D.set_initial()
             assert isinstance(D.get_initial_distribution().dist,
-                              sstats._continuous_distns.uniform_gen)
+                              sstats._continuous_distns.norm_gen)
             # set_output_probability_set
-            assert D.get_output_values().shape == (self.num, self.dim2)
             assert D.get_output_values().shape == (self.num, dim)
             # test that re-setting initial works as expected (deletes output
             # values)
-            D.set_initial(dist.norm)
+            D.set_initial(dist.uniform)
             assert D.get_output_values().size == self.num * dim
             assert isinstance(D.get_initial().dist,
-                              sstats._continuous_distns.norm_gen)
+                              sstats._continuous_distns.uniform_gen)
             D.set_initial(dist.norm(loc=np.zeros(self.dim1)))
             assert D.get_output_values().shape == (self.num, dim)
             assert isinstance(D.get_initial().dist,

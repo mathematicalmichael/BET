@@ -1330,9 +1330,9 @@ class sample_set_base(object):
         Pass any additional keyword arguments to ``dist`` that are required.
         """
         if dist is None:
-            from scipy.stats import uniform
-            dist = uniform
-            self._domain = np.array([[0, 1]] * self._dim)
+            from scipy.stats import norm
+            dist = norm
+            self._domain = np.array([[-np.inf, np.inf]] * self._dim)
         if isinstance(dist, scipy.stats.distributions.rv_frozen):
             self._distribution = dist
         elif isinstance(dist, str):
@@ -1355,7 +1355,7 @@ class sample_set_base(object):
         except ValueError:
             raise dim_not_matching("Dimensions incorrectly specified.")
         except AttributeError:
-            logging.warn("Could not infer domain from distribution.")
+            logging.warning("Could not infer domain from distribution.")
 
     def set_dist(self, dist=None, *args, **kwds):
         """
@@ -1407,6 +1407,8 @@ class sample_set_base(object):
                                 int(comm.rank < num_samples % comm.size)
         self.set_values_local(self.rvs(num_samples_local,
                                        dist, *args, **kwds))
+        if dist is not None:
+            self.set_distribution(dist, *args, **kwds)
         self.update_bounds_local()
         self._probabilities_local = None
         self._volumes_local = None
@@ -3257,28 +3259,40 @@ class discretization(object):
         """
         return self.set_predicted_distribution(dist, iteration, *args, **kwds)
 
-    def set_initial(self, dist=None, num=None, *args, **kwds):
+    def set_initial_distribution(self, dist=None, num=None, gen=True, *args, **kwds):
         r"""
+        If dist=None and num is not None, then just re-generate
+        samples and map outputs using existing distribution.
         """
-        self._input_sample_set.set_distribution(dist, *args, **kwds)
-
-        # regenerate samples
+        
         if num is None:
             num = self._input_sample_set.check_num()
-        self._input_sample_set.generate_samples(num)
+                
+        if dist is None:
+            if self._input_sample_set._distribution is None:
+                logging.warning("Assuming independent Gaussian.")
+                self._input_sample_set.set_distribution()
+            else:  # do not change existing distribution.
+                pass
+        else: # if a new distribution is specified, re-generate samples
+            self._input_sample_set.set_distribution(dist, *args, **kwds)
+        if gen:
+            self._input_sample_set.generate_samples(num)
+        # map output samples
         lam_ref = self._input_sample_set._reference_value
-        # set output samples
+        # initialize output samples
         y = np.zeros((num, 1))  # temporary vector of correct shape
         v = np.array([])
+        # TK - TODO: support string-indexed dictionaries, consistent order, unify with pdf methods.
         for iteration in self._setup.keys():  # map through every model
             # clear all push-forwards
             self._setup[iteration]['pre'] = None
             model = self._setup[iteration]['model']
-            # ensure model output size
+            # ensure model output size is consistent
             if model is not None:
                 z = model(self._input_sample_set._values)
                 if lam_ref is not None:
-                    try:
+                    try:  # handle reference value
                         v = np.concatenate((v, model(lam_ref)), axis=0)
                     except ValueError:  # handle scalar models
                         v = np.column_stack((v, model(lam_ref).reshape(1,)))
@@ -3292,11 +3306,11 @@ class discretization(object):
         if lam_ref is not None:
             self._output_sample_set.set_reference_value(v)
 
-    def set_observed(self, dist=None, iteration=None, *args, **kwds):
+    def set_initial(self, dist=None, num=None, gen=True, *args, **kwds):
         r"""
-        Wrapper for ``set_observed_distribution``
+        Wrapper for `set_initial_distribution`.
         """
-        return self.set_observed_distribution(dist, iteration, *args, **kwds)
+        return self.set_initial_distribution(dist, num, gen, *args, **kwds)
 
     def set_observed_distribution(
             self, dist=None, iteration=None, *args, **kwds):
@@ -3338,6 +3352,13 @@ class discretization(object):
         # Store information about standard deviation for later use.
         logging.info("Setting standard deviation information for output data.")
         self.set_std(obs_dist.std(), iteration=iteration)
+
+    def set_observed(self, dist=None, iteration=None, *args, **kwds):
+        r"""
+        Wrapper for ``set_observed_distribution``
+        """
+        return self.set_observed_distribution(dist, iteration, *args, **kwds)
+
 
     def compute_pushforward(self, dist=None, iteration=None, *args, **kwds):
         # avoid accept/reject if possible
@@ -3485,6 +3506,10 @@ class discretization(object):
     def set_model(self, model, iteration=None):
         if iteration is None:
             iteration = self._iteration
+        if self._setup[iteration]['model'] is not None:
+            msg = "Overwriting existing model, but not mapping outputs. "
+            msg += "Run`.set_initial(gen=False)` to re-compute output values."
+            logging.warning(msg)
         self._setup[iteration]['model'] = model
 
     def updated_pdf(self, x=None, iteration=None):
