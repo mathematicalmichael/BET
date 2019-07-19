@@ -256,13 +256,13 @@ class sampler(object):
         self.error_estimates = error_estimates
         self.jacobians = jacobians
 
-    def set_num_samples(self, num_samples: int):
+    def set_num_samples(self, num_samples):
         """
         Overwrite `num_samples`, the default value for sample size.
 
         :param int num_samples: Number of samples for sample-set objects.
         """
-        self.num_samples = num_samples
+        self.num_samples = int(num_samples)
 
     def save(self, mdict, save_file, discretization=None, globalize=False):
         """
