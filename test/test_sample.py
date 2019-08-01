@@ -2045,7 +2045,7 @@ class Test_sampling_discretization(unittest.TestCase):
             assert np.linalg.norm(np.array(D.get_std()) -
                                   D.get_data().std()) == 0
             # change data
-            D.set_data(1+2*ref_val)
+            D.set_data(1 + 2 * ref_val)
             assert np.linalg.norm(np.array(D.get_std()) -
                                   D.get_data().std()) == 0
 
@@ -2108,7 +2108,7 @@ class Test_sampling_discretization(unittest.TestCase):
 
         if D._setup[0]['model'] is not None:
             # recover missing output reference if input present.
-            D._input_sample_set.set_reference_value(ref_val/2)
+            D._input_sample_set.set_reference_value(ref_val / 2)
             D._output_sample_set._reference_value = None
             D.set_noise_model(std / 2)  # half error level
             D.set_data_from_reference()
@@ -2267,7 +2267,7 @@ class Test_sampling_discretization(unittest.TestCase):
         mud_point = D.mud_point()
         D.set_likelihood()
         map_point = D.map_point()
-        assert np.linalg.norm(mud_point-map_point) / \
+        assert np.linalg.norm(mud_point - map_point) / \
             np.linalg.norm(map_point) < 0.05
         #nptest.assert_array_equal(mud_point, map_point)
 
@@ -2441,7 +2441,7 @@ class Test_sampling_data_driven(Test_sampling_discretization):
         D.set_likelihood()
         map_point = D.map_point()
         nptest.assert_array_almost_equal(mud_point, map_point, 2)
-        assert np.linalg.norm(mud_point-map_point) / \
+        assert np.linalg.norm(mud_point - map_point) / \
             np.linalg.norm(map_point) < 0.05
 
 

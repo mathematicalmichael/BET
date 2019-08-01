@@ -861,7 +861,7 @@ class sample_set_base(object):
             if (dens is None) or (probs is None):
                 self._volumes = None
             else:
-                self._volumes = probs/dens
+                self._volumes = probs / dens
 
     def get_volumes(self):
         """
@@ -890,7 +890,7 @@ class sample_set_base(object):
             if (dens is None) or (vols is None):
                 self._probabilities = None
             else:
-                self._probabilities = dens*vols
+                self._probabilities = dens * vols
 
     def get_probabilities(self):
         """
@@ -1078,7 +1078,7 @@ class sample_set_base(object):
             if (dens is None) or (vols is None):
                 self._probabilities_local = None
             else:
-                self._probabilities_local = dens*vols
+                self._probabilities_local = dens * vols
 
     def get_probabilities_local(self):
         """
@@ -3265,7 +3265,8 @@ class discretization(object):
         """
         return self.set_predicted_distribution(dist, iteration, *args, **kwds)
 
-    def set_initial_distribution(self, dist=None, num=None, gen=True, *args, **kwds):
+    def set_initial_distribution(
+            self, dist=None, num=None, gen=True, *args, **kwds):
         r"""
         If dist=None and num is not None, then just re-generate
         samples and map outputs using existing distribution.
@@ -3289,7 +3290,8 @@ class discretization(object):
         # initialize output samples
         y = np.zeros((num, 1))  # temporary vector of correct shape
         v = np.array([])
-        # TK - TODO: support string-indexed dictionaries, consistent order, unify with pdf methods.
+        # TK - TODO: support string-indexed dictionaries, consistent order,
+        # unify with pdf methods.
         for iteration in self._setup.keys():  # map through every model
             # clear all push-forwards
             self._setup[iteration]['pre'] = None
@@ -3393,7 +3395,7 @@ class discretization(object):
         it = self._iteration
         self.default_setup()
         # inherit all features in the new iteration
-        self._setup[it] = self._setup[it-1].copy()
+        self._setup[it] = self._setup[it - 1].copy()
         pass
 
     def set_iteration(self, iteration=0):
@@ -3453,7 +3455,7 @@ class discretization(object):
                     obs = norm(loc=0, scale=1)
                 elif data_driven_mode is 'MSE':
                     from scipy.stats.distributions import gamma
-                    obs = gamma(a=dim/2.0, scale=2.0/dim)
+                    obs = gamma(a=dim / 2.0, scale=2.0 / dim)
                 elif data_driven_mode is 'SSE':
                     from scipy.stats.distributions import chi2
                     obs = chi2(df=dim)
@@ -3559,9 +3561,9 @@ class discretization(object):
         """
         dens = self.updated_pdf()
         # initial probability is 1/N, density known.
-        vols = 1./(self.check_nums()*self.initial_pdf())
-        probs = dens*vols
-        self._input_sample_set.set_probabilities(probs/np.sum(probs))
+        vols = 1. / (self.check_nums() * self.initial_pdf())
+        probs = dens * vols
+        self._input_sample_set.set_probabilities(probs / np.sum(probs))
         self._input_sample_set.set_volumes(vols)
 
     def set_prob_from_den(self):

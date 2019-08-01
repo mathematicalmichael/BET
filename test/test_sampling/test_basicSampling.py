@@ -250,7 +250,7 @@ def verify_add_qoi_with_data(model, sampler,
         prob_set = sample_set(1)
     else:
         output_sample_set = sample_set(output_values.shape[1])
-        prob_set = sample_set(output_values.shape[1]//2)
+        prob_set = sample_set(output_values.shape[1] // 2)
 
     output_sample_set.set_values(output_values)
     discretization = disc(input_sample_set, output_sample_set)
