@@ -2063,27 +2063,27 @@ class Test_sampling_discretization(unittest.TestCase):
         D.set_observed(obs_dist)
         # take draw from distribution
         D.set_data_from_observed()
-        nptest.assert_array_equal(obs_dist.mean(),
-                                  D.get_data())
+        nptest.assert_array_equal(obs_dist.mean() - \
+                                  D.get_data(), 0)
         D.set_data_from_observed('mean')
-        nptest.assert_array_equal(obs_dist.mean(),
-                                  D.get_data())
+        nptest.assert_array_equal(obs_dist.mean() - \
+                                  D.get_data(), 0)
         D.set_data_from_observed('median')
-        nptest.assert_array_equal(obs_dist.median(),
-                                  D.get_data())
+        nptest.assert_array_equal(obs_dist.median() - \
+                                  D.get_data(), 0)
         # interval around mean value using our keywords: min/max
         D.set_data_from_observed('min')
-        nptest.assert_array_equal(obs_dist.interval(0.99)[0],
-                                  D.get_data())
+        nptest.assert_array_equal(obs_dist.interval(0.99)[0] - \
+                                  D.get_data(), 0)
         D.set_data_from_observed('min', alpha=0.15)
-        nptest.assert_array_equal(obs_dist.interval(0.15)[0],
-                                  D.get_data())
+        nptest.assert_array_equal(obs_dist.interval(0.15)[0] - \
+                                  D.get_data(), 0)
         D.set_data_from_observed('max')
-        nptest.assert_array_equal(obs_dist.interval(0.99)[1],
-                                  D.get_data())
+        nptest.assert_array_equal(obs_dist.interval(0.99)[1] - \
+                                  D.get_data(), 0)
         D.set_data_from_observed('max', alpha=0.25)
-        nptest.assert_array_equal(obs_dist.interval(0.25)[1],
-                                  D.get_data())
+        nptest.assert_array_equal(obs_dist.interval(0.25)[1] - \
+                                  D.get_data(), 0)
 
     def test_set_data_from_reference(self):
         """
@@ -2473,7 +2473,7 @@ class Test_sampling_repeated(Test_sampling_data_driven):
     def setUp(self):
         self.dim1 = 1
         self.num = 250
-        self.dim2 = 100
+        self.dim2 = 1
         values1 = np.random.rand(self.num, self.dim1)
         values2 = np.random.randn(self.num, self.dim2)
         self.input_values = values1
@@ -2490,5 +2490,6 @@ class Test_sampling_repeated(Test_sampling_data_driven):
                                           output_probability_set=self.
                                           output_probability_set)
         self.std = 0.1
-        self.disc.data_driven(np.ones(self.dim2), std=self.std)
+        self.num_data = 100
+        self.disc.data_driven(np.ones(self.num_data), std=self.std)
         self.disc.set_repeated()

@@ -3830,10 +3830,15 @@ class discretization(object):
         else:
             inds = self.get_data_indices(iteration)
             if len(inds) != dim:
-                raise ValueError('Indices do not match data length.')
+                msg = 'Indices do not match data length. '
+                msg += 'Overwriting data entirely.'
+                # raise ValueError('Indices do not match data length.')
+                logging.warning(msg)
+                self._output_probability_set.\
+                    _reference_value = np.copy(data)
             else:
-                self._output_probability_set._reference_value[self.get_data_indices()] = np.copy(
-                    data)
+                self._output_probability_set.\
+                    _reference_value[self.get_data_indices()] = np.copy(data)
 
         if std is None:
             if self._setup[iteration]['std'] is None:
@@ -3903,7 +3908,7 @@ class discretization(object):
             data_len = self._output_sample_set._dim
         inds = self.format_indices(data_len, self._setup[iteration]['ind'])
         rep = self._setup[iteration]['rep']
-        if rep:  # handle repeated observations
+        if rep is not False:  # handle repeated observations
             if isinstance(rep, np.ndarray):
                 rep = list(rep)
 
@@ -4086,10 +4091,14 @@ class discretization(object):
         else:  # write as-is if anything except None
             # but if numpy array, convert to list.
             if isinstance(std, np.ndarray):
-                std = list(std)
-                if len(std) != len(self.get_data_indices(iteration)):
-                    msg = "Wrong size std (mismatch with data indices)."
-                    raise dim_not_matching(msg)
+                std = std.tolist()
+                # if singleton in array, extract it, continue.
+                if len(std) == 1:
+                    std = std[0]
+                else:  # if array is wrong length, raise error.
+                    if len(std) != len(self.get_data_indices(iteration)):
+                        msg = "Wrong size std (mismatch with data indices)."
+                        raise dim_not_matching(msg)
 
             if not(isinstance(std, int) or isinstance(std, float)):
                 if len(std) != len(self.get_data_indices(iteration)):
