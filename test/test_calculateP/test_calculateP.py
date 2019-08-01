@@ -177,7 +177,8 @@ class Test_prob_3to2_global_to_local(TestProbMethod_3to2, prob):
         self.P_ref = np.loadtxt(data_path + "/3to2_prob.txt.gz")
 
 
-class Test_prob_on_emulated_samples_3to2(TestProbMethod_3to2, prob_on_emulated_samples):
+class Test_prob_on_emulated_samples_3to2(
+        TestProbMethod_3to2, prob_on_emulated_samples):
     """
     Test :meth:`bet.calculateP.calculateP.prob_on_emulated_samples` on a 3 to 2 map.
     """
@@ -188,11 +189,13 @@ class Test_prob_on_emulated_samples_3to2(TestProbMethod_3to2, prob_on_emulated_s
         """
         super(Test_prob_on_emulated_samples_3to2, self).setUp()
         calcP.prob_on_emulated_samples(self.disc)
-        self.P_emulate_ref = np.loadtxt(data_path+"/3to2_prob_emulated.txt.gz")
+        self.P_emulate_ref = np.loadtxt(
+            data_path + "/3to2_prob_emulated.txt.gz")
         #self.P_emulate = util.get_global_values(self.P_emulate)
 
 
-class Test_prob_with_emulated_volumes_3to2(TestProbMethod_3to2, prob_with_emulated_volumes):
+class Test_prob_with_emulated_volumes_3to2(
+        TestProbMethod_3to2, prob_with_emulated_volumes):
     """
     Test :meth:`bet.calculateP.calculateP.prob_with_emulated_volumes` on a 3 to 2 map.
     """
@@ -249,7 +252,8 @@ class Test_prob_3to1(TestProbMethod_3to1, prob):
         self.P_ref = np.loadtxt(data_path + "/3to1_prob.txt.gz")
 
 
-class Test_prob_on_emulated_samples_3to1(TestProbMethod_3to1, prob_on_emulated_samples):
+class Test_prob_on_emulated_samples_3to1(
+        TestProbMethod_3to1, prob_on_emulated_samples):
     """
     Test :meth:`bet.calculateP.calculateP.prob_on_emulated_samples` on a 3 to 1 map.
     """
@@ -260,10 +264,12 @@ class Test_prob_on_emulated_samples_3to1(TestProbMethod_3to1, prob_on_emulated_s
         """
         super(Test_prob_on_emulated_samples_3to1, self).setUp()
         calcP.prob_on_emulated_samples(self.disc)
-        self.P_emulate_ref = np.loadtxt(data_path+"/3to1_prob_emulated.txt.gz")
+        self.P_emulate_ref = np.loadtxt(
+            data_path + "/3to1_prob_emulated.txt.gz")
 
 
-class Test_prob_with_emulated_volumes_3to1(TestProbMethod_3to1, prob_with_emulated_volumes):
+class Test_prob_with_emulated_volumes_3to1(
+        TestProbMethod_3to1, prob_with_emulated_volumes):
     """
     Test :meth:`bet.calculateP.calculateP.prob_with_emulated_volumes` on a 3 to 1 map.
     """
@@ -326,7 +332,8 @@ class Test_prob_10to4(TestProbMethod_10to4, prob):
         calcP.prob(self.disc)
 
 
-class Test_prob_on_emulated_samples_10to4(TestProbMethod_10to4, prob_on_emulated_samples):
+class Test_prob_on_emulated_samples_10to4(
+        TestProbMethod_10to4, prob_on_emulated_samples):
     """
     Test :meth:`bet.calculateP.calculateP.prob_on_emulated_samples` on a 10 to 4 map.
     """
@@ -340,7 +347,8 @@ class Test_prob_on_emulated_samples_10to4(TestProbMethod_10to4, prob_on_emulated
         calcP.prob_on_emulated_samples(self.disc)
 
 
-class Test_prob_with_emulated_volumes_10to4(TestProbMethod_10to4, prob_with_emulated_volumes):
+class Test_prob_with_emulated_volumes_10to4(
+        TestProbMethod_10to4, prob_with_emulated_volumes):
     """
     Test :meth:`bet.calculateP.calculateP.prob_with_emulated_volumes` on a 10 to 4 map.
     """
@@ -375,7 +383,7 @@ class TestProbMethod_1to1(unittest.TestCase):
         self.num_l_emulate = 1001
         self.inputs = bsam.random_sample_set('r',
                                              self.inputs.get_domain(), num_samples=1001, globalize=True)
-        self.outputs.set_values(2.0*self.inputs._values)
+        self.outputs.set_values(2.0 * self.inputs._values)
         Q_ref = np.mean(self.outputs._values, axis=0)
         self.inputs_emulated = bsam.random_sample_set('r',
                                                       self.inputs.get_domain(), num_samples=self.num_l_emulate,
@@ -406,7 +414,8 @@ class Test_prob_1to1(TestProbMethod_1to1, prob):
         calcP.prob(self.disc)
 
 
-class Test_prob_on_emulated_samples_1to1(TestProbMethod_1to1, prob_on_emulated_samples):
+class Test_prob_on_emulated_samples_1to1(
+        TestProbMethod_1to1, prob_on_emulated_samples):
     """
     Test :meth:`bet.calculateP.calculateP.prob_on_emulated_samples` on a 1 to 1 map.
     """
@@ -419,7 +428,8 @@ class Test_prob_on_emulated_samples_1to1(TestProbMethod_1to1, prob_on_emulated_s
         calcP.prob_on_emulated_samples(self.disc)
 
 
-class Test_prob_with_emulated_volumes_1to1(TestProbMethod_1to1, prob_with_emulated_volumes):
+class Test_prob_with_emulated_volumes_1to1(
+        TestProbMethod_1to1, prob_with_emulated_volumes):
     """
     Test :meth:`bet.calculateP.calculateP.prob_with_emulated_volumes` on a 1 to 1 map.
     """
@@ -434,9 +444,9 @@ class Test_prob_with_emulated_volumes_1to1(TestProbMethod_1to1, prob_with_emulat
 
 class Test_prob_from_sample_set(unittest.TestCase):
     """
-    Test: method: `bet.calculateP.prob_from_sample_set`, 
+    Test: method: `bet.calculateP.prob_from_sample_set`,
     : method: `bet.calculateP.prob_from_sample_set_with_emulated_volumes`,
-    and : method: `bet.calculateP.prob_from_discretization_input` 
+    and : method: `bet.calculateP.prob_from_discretization_input`
     on a 2D domain.
     """
 
@@ -450,7 +460,7 @@ class Test_prob_from_sample_set(unittest.TestCase):
         self.set_old.setup([np.linspace(0, 1, 21), np.linspace(0, 1, 21)])
         num_old = self.set_old.check_num()
         probs = np.zeros((num_old,))
-        probs[0:-1] = 1.0/float(num_old-1)
+        probs[0:-1] = 1.0 / float(num_old - 1)
         self.set_old.set_probabilities(probs)
 
         self.set_em = samp.cartesian_sample_set(dim=2)
@@ -469,7 +479,7 @@ class Test_prob_from_sample_set(unittest.TestCase):
         nptest.assert_almost_equal(self.set_new._probabilities, [0.25, 0.75])
         num_em = self.set_em.check_num()
         probs = np.zeros((num_em,))
-        probs[0:-1] = 1.0/float(num_em-1)
+        probs[0:-1] = 1.0 / float(num_em - 1)
         self.set_em.set_probabilities(probs)
         self.set_em.global_to_local()
         disc = samp.discretization(input_sample_set=self.set_old,

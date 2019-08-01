@@ -169,6 +169,7 @@ def load_sample_set(file_name, sample_set_name=None, localize=True):
                 kwds[newkey] = mdat[key][0]
             dist = eval(mdat[sample_set_name + '_dist_type'][0])(**kwds)
             loaded_set.set_distribution(dist)
+
     else:
         logging.info("No sample_set named {} with _dim in file".
                      format(sample_set_name))
@@ -915,7 +916,7 @@ class sample_set_base(object):
             logging.warn("Setting densities with probability/volume.")
             probs = self._probabilities
             vols = self._volumes
-            self._densities = probs/vols
+            self._densities = probs / vols
 
     def get_densities(self):
         """
@@ -1104,7 +1105,7 @@ class sample_set_base(object):
             logging.warn("Setting densities with probability/volume.")
             probs = self._probabilities_local
             vols = self._volumes_local
-            self._densities_local = probs/vols
+            self._densities_local = probs / vols
 
     def get_densities_local(self):
         """
@@ -1193,7 +1194,7 @@ class sample_set_base(object):
         width = self._domain[:, 1] - self._domain[:, 0]
         mc_points = width * np.random.random((n_mc_points_local,
                                               self._domain.shape[0])) +\
-            self._domain[:, 0]
+                    self._domain[:, 0]
         (_, emulate_ptr) = self.query(mc_points)
         vol = np.zeros((num,))
         for i in range(num):
