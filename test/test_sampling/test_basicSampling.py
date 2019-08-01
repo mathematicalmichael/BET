@@ -228,11 +228,11 @@ def verify_add_qoi(model, sampler,
     print("HERE HERE", mdat, my_num)
     # comm.barrier()
     # compare the samples
-    nptest.assert_array_equal(my_discretization.\
+    nptest.assert_array_equal(my_discretization.
                               _input_sample_set.get_values(),
                               saved_disc._input_sample_set.get_values())
     # compare the data
-    nptest.assert_array_equal(my_discretization.\
+    nptest.assert_array_equal(my_discretization.
                               _output_sample_set.get_values(),
                               saved_disc._output_sample_set.get_values())
 
@@ -296,11 +296,11 @@ def verify_add_qoi_with_data(model, sampler,
     print("HERE HERE", mdat, my_num)
     # comm.barrier()
     # compare the samples
-    nptest.assert_array_equal(my_discretization.\
+    nptest.assert_array_equal(my_discretization.
                               _input_sample_set.get_values(),
                               saved_disc._input_sample_set.get_values())
     # compare the data
-    nptest.assert_array_equal(my_discretization.\
+    nptest.assert_array_equal(my_discretization.
                               _output_sample_set.get_values(),
                               saved_disc._output_sample_set.get_values())
 
