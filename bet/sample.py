@@ -4054,8 +4054,8 @@ class discretization(object):
                     if dist is None:
                         raise AttributeError("Missing model and observed.")
                     else:
-                        msg = "Missing model but input reference value present."
-                        msg += "Using draw directly from observed distribution."
+                        msg = "Missing model, input reference value present."
+                        msg += "Using draw from observed distribution."
                         logging.warn(msg)
                         direct = True
                 else:

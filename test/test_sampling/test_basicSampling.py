@@ -228,10 +228,12 @@ def verify_add_qoi(model, sampler,
     print("HERE HERE", mdat, my_num)
     # comm.barrier()
     # compare the samples
-    nptest.assert_array_equal(my_discretization._input_sample_set.get_values(),
+    nptest.assert_array_equal(my_discretization.\
+                              _input_sample_set.get_values(),
                               saved_disc._input_sample_set.get_values())
     # compare the data
-    nptest.assert_array_equal(my_discretization._output_sample_set.get_values(),
+    nptest.assert_array_equal(my_discretization.\
+                              _output_sample_set.get_values(),
                               saved_disc._output_sample_set.get_values())
 
 
@@ -294,14 +296,17 @@ def verify_add_qoi_with_data(model, sampler,
     print("HERE HERE", mdat, my_num)
     # comm.barrier()
     # compare the samples
-    nptest.assert_array_equal(my_discretization._input_sample_set.get_values(),
+    nptest.assert_array_equal(my_discretization.\
+                              _input_sample_set.get_values(),
                               saved_disc._input_sample_set.get_values())
     # compare the data
-    nptest.assert_array_equal(my_discretization._output_sample_set.get_values(),
+    nptest.assert_array_equal(my_discretization.\
+                              _output_sample_set.get_values(),
                               saved_disc._output_sample_set.get_values())
 
 
-def verify_create_random_discretization(model, sampler, sample_type, input_domain,
+def verify_create_random_discretization(model, sampler,
+                                        sample_type, input_domain,
                                         num_samples, savefile):
 
     np.random.seed(1)

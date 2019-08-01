@@ -2269,7 +2269,7 @@ class Test_sampling_discretization(unittest.TestCase):
         map_point = D.map_point()
         assert np.linalg.norm(mud_point - map_point) / \
             np.linalg.norm(map_point) < 0.05
-        #nptest.assert_array_equal(mud_point, map_point)
+        # nptest.assert_array_equal(mud_point, map_point)
 
     def test_shorthand(self):
         """
@@ -2436,7 +2436,7 @@ class Test_sampling_data_driven(Test_sampling_discretization):
 
         mud_point = D.mud_point()
         # set_output_probability_set
-        #D.set_observed(scale=[self.std] * self.dim2)
+        # D.set_observed(scale=[self.std] * self.dim2)
         D.set_noise_model(self.std)
         D.set_likelihood()
         map_point = D.map_point()
