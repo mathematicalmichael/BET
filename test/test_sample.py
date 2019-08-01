@@ -2063,26 +2063,26 @@ class Test_sampling_discretization(unittest.TestCase):
         D.set_observed(obs_dist)
         # take draw from distribution
         D.set_data_from_observed()
-        nptest.assert_array_equal(obs_dist.mean() - \
+        nptest.assert_array_equal(obs_dist.mean() -
                                   D.get_data(), 0)
         D.set_data_from_observed('mean')
-        nptest.assert_array_equal(obs_dist.mean() - \
+        nptest.assert_array_equal(obs_dist.mean() -
                                   D.get_data(), 0)
         D.set_data_from_observed('median')
-        nptest.assert_array_equal(obs_dist.median() - \
+        nptest.assert_array_equal(obs_dist.median() -
                                   D.get_data(), 0)
         # interval around mean value using our keywords: min/max
         D.set_data_from_observed('min')
-        nptest.assert_array_equal(obs_dist.interval(0.99)[0] - \
+        nptest.assert_array_equal(obs_dist.interval(0.99)[0] -
                                   D.get_data(), 0)
         D.set_data_from_observed('min', alpha=0.15)
-        nptest.assert_array_equal(obs_dist.interval(0.15)[0] - \
+        nptest.assert_array_equal(obs_dist.interval(0.15)[0] -
                                   D.get_data(), 0)
         D.set_data_from_observed('max')
-        nptest.assert_array_equal(obs_dist.interval(0.99)[1] - \
+        nptest.assert_array_equal(obs_dist.interval(0.99)[1] -
                                   D.get_data(), 0)
         D.set_data_from_observed('max', alpha=0.25)
-        nptest.assert_array_equal(obs_dist.interval(0.25)[1] - \
+        nptest.assert_array_equal(obs_dist.interval(0.25)[1] -
                                   D.get_data(), 0)
 
     def test_set_data_from_reference(self):
