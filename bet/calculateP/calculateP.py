@@ -115,8 +115,8 @@ def prob(discretization, globalize=True):
             Itemp_sum = comm.allreduce(Itemp_sum, op=MPI.SUM)
             if Itemp_sum > 0:
                 P_local[Itemp] = discretization._output_probability_set.\
-                    _probabilities[i]*discretization._input_sample_set.\
-                    _probabilities_local[Itemp]/Itemp_sum
+                    _probabilities[i] * discretization._input_sample_set.\
+                    _probabilities_local[Itemp] / Itemp_sum
     if globalize:
         discretization._input_sample_set._probabilities = util.\
             get_global_values(P_local)

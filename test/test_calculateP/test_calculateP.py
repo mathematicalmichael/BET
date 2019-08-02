@@ -515,6 +515,6 @@ class Test_sampling_approach(unittest.TestCase, prob):
         P_ref = np.zeros(self.num)
         P_ref[np.logical_and(disc.get_input_values()[:, 0] < 0.5,
                              disc.get_input_values()[:, 1] < 0.5)] = 1
-        P_ref = P_ref/np.sum(P_ref)
+        P_ref = P_ref / np.sum(P_ref)
 
         self.P_ref = P_ref
