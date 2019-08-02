@@ -3854,7 +3854,8 @@ class discretization(object):
                     logging.warning(
                         "No std provided. Will use std from observed.")
             else:
-                logging.warning("No std provided. Using existing entry in setup.")
+                logging.warning(
+                    "No std provided. Using existing entry in setup.")
         else:
             self._setup[iteration]['std'] = std
         if self._setup[iteration]['col']:
@@ -4066,7 +4067,8 @@ class discretization(object):
             Q_ref = Q_ref[inds]
 
         if (np.max(np.abs(dist.mean())) != 0):
-            logging.warning("Non-homogeneous noise. Using random draw for data.")
+            logging.warning(
+                "Non-homogeneous noise. Using random draw for data.")
             direct = True
         if not direct:
             noise = self._output_probability_set.rvs(dist=dist)
@@ -4088,7 +4090,8 @@ class discretization(object):
                     logging.warning(
                         "Defaulting to estimating using data sample variance.")
                 else:  # use observed to infer std if it is missing.
-                    logging.warning("Inferring standard deviation from observed.")
+                    logging.warning(
+                        "Inferring standard deviation from observed.")
                     # method std() belongs to distribution
         else:  # write as-is if anything except None
             # but if numpy array, convert to list.
