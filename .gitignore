@@ -1,4 +1,8 @@
 bin/
+*.swn
+*.swo
+*.swp
+*.rst.txt
 doc/_build
 hershel_bin
 gh-pages/
