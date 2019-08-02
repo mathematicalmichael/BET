@@ -407,7 +407,8 @@ class comparison(object):
             self._ptr_left_local = None
             self._den_left = None
         elif isinstance(sample_set, samp.discretization):
-            logging.warning("Discretization passed. Assuming input set.")
+            msg = "Discretization passed. Assuming input set."
+            logging.warning(msg)
             sample_set = sample_set.get_input_sample_set()
             self._left_sample_set = sample_set
             self._ptr_left = None
@@ -478,7 +479,8 @@ class comparison(object):
             self._ptr_right_local = None
             self._den_right = None
         elif isinstance(sample_set, samp.discretization):
-            logging.warning("Discretization passed. Assuming input set.")
+            msg = "Discretization passed. Assuming input set."
+            logging.warning(msg)
             sample_set = sample_set.get_input_sample_set()
             self._right_sample_set = sample_set
             self._ptr_right = None

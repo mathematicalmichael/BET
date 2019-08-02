@@ -1102,7 +1102,8 @@ class sample_set_base(object):
         if densities_local is not None:
             self._densities_local = densities_local
         else:
-            logging.warning("Setting densities with probability/volume.")
+            msg = "Setting densities with probability/volume."
+            logging.warning(msg)
             probs = self._probabilities_local
             vols = self._volumes_local
             self._densities_local = probs / vols
