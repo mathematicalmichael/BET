@@ -95,7 +95,7 @@ def prob(discretization, globalize=True):
         if discretization._input_sample_set._volumes_local is None:
             msg = "No volumes or initial probabilities. "
             msg += "Making MC assumption for both attributes."
-            logging.warn(msg)
+            logging.warning(msg)
             discretization._input_sample_set.estimate_probabilities_mc()
             discretization._input_sample_set.estimate_volume_mc()
         else:  # or use MC assumption in absense of other information
@@ -167,7 +167,7 @@ def prob_from_sample_set_with_emulated_volumes(set_old, set_new,
 
     """
     if set_emulate is None:
-        logging.warn("Using MC assumption because no emulated points given")
+        logging.warning("Using MC assumption because no emulated points given")
         return prob_from_sample_set(set_old, set_new)
 
     # Check dimensions
@@ -207,7 +207,7 @@ def prob_from_sample_set_with_emulated_volumes(set_old, set_new,
     if warn:
         msg = "Some old cells have no emulated points in them. "
         msg += "Renormalizing probability."
-        logging.warn(msg)
+        logging.warning(msg)
         total_prob = np.sum(prob_em)
         total_prob = comm.allreduce(total_prob, op=MPI.SUM)
         prob_em = prob_em / total_prob
@@ -280,7 +280,7 @@ def prob_from_discretization_input(disc, set_new):
 
     """
     if disc._emulated_input_sample_set is None:
-        logging.warn("Using MC assumption because no emulated points given")
+        logging.warning("Using MC assumption because no emulated points given")
         em_set = disc._input_sample_set
     else:
         em_set = disc._emulated_input_sample_set
