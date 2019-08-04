@@ -46,7 +46,10 @@ def loadmat(save_file, lb_model=None, hot_start=None, num_chains=None):
         ``kern_old``)
 
     """
-    print(hot_start)
+    trunc_save_file = save_file
+    if '.mat' in save_file:
+        trunc_save_file = save_file[:-4]
+
     if hot_start is None:
         hot_start = 1
    # LOAD FILES
@@ -57,7 +60,7 @@ def loadmat(save_file, lb_model=None, hot_start=None, num_chains=None):
         save_dir = os.path.dirname(save_file)
         base_name = os.path.basename(save_file)
         mdat_files = glob.glob(os.path.join(save_dir,
-                                            "proc*_{}".format(base_name)))
+                "proc*_{}".format(base_name))+'.mat')
         if len(mdat_files) > 0:
             tmp_mdat = sio.loadmat(mdat_files[0])
         else:
@@ -71,7 +74,7 @@ def loadmat(save_file, lb_model=None, hot_start=None, num_chains=None):
             if num_chains is None:
                 num_chains = np.squeeze(mdat['num_chains'])
             num_chains_pproc = num_chains // comm.size
-            disc = sample.load_discretization(save_file)
+            disc = sample.load_discretization(trunc_save_file)
             kern_old = np.squeeze(mdat['kern_old'])
             all_step_ratios = np.squeeze(mdat['step_ratios'])
             chain_length = disc.check_nums() // num_chains
@@ -95,18 +98,26 @@ def loadmat(save_file, lb_model=None, hot_start=None, num_chains=None):
             # if the number of processors is the same then set mdat to
             # be the one with the matching processor number (doesn't
             # really matter)
-            disc = sample.load_discretization(mdat_files[comm.rank])
+            if '.mat' in mdat_files[comm.rank]:
+                disc = sample.load_discretization(mdat_files[comm.rank][:-4])
+            else:
+                disc = sample.load_discretization(mdat_files[comm.rank])
             kern_old = np.squeeze(tmp_mdat['kern_old'])
             all_step_ratios = np.squeeze(tmp_mdat['step_ratios'])
+            chain_length = disc.check_nums()/num_chains
         elif hot_start == 1 and len(mdat_files) != comm.size:
             logging.info("HOT START using parallel files (diff nproc)")
             # Determine how many processors the previous data used
             # otherwise gather the data from mdat and then scatter
             # among the processors and update mdat
-            mdat_files_local = comm.scatter(mdat_files)
+            mdat_files_local = np.array_split(mdat_files, comm.size)[comm.rank]
             mdat_local = [sio.loadmat(m) for m in mdat_files_local]
-            disc_local = [sample.load_discretization(m) for m in
-                          mdat_files_local]
+            if '.mat' in save_file:
+                disc_local = [sample.load_discretization(m[:-4]) for m in\
+                    mdat_files_local]
+            else:
+                disc_local = [sample.load_discretization(m) for m in\
+                    mdat_files_local]
             mdat_list = comm.allgather(mdat_local)
             disc_list = comm.allgather(disc_local)
             mdat_global = []
@@ -151,10 +162,11 @@ def loadmat(save_file, lb_model=None, hot_start=None, num_chains=None):
         if num_chains is None:
             num_chains = np.squeeze(mdat['num_chains'])
         num_chains_pproc = num_chains // comm.size
-        disc = sample.load_discretization(save_file)
+        disc = sample.load_discretization(trunc_save_file)
         kern_old = np.squeeze(mdat['kern_old'])
         all_step_ratios = np.squeeze(mdat['step_ratios'])
         chain_length = disc.check_nums() // num_chains
+        disc.local_to_global()
         # reshape if parallel
         if comm.size > 1:
             temp_input = np.reshape(disc._input_sample_set.
