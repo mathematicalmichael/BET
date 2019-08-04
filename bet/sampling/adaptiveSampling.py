@@ -104,7 +104,8 @@ def loadmat(save_file, lb_model=None, hot_start=None, num_chains=None):
                 disc = sample.load_discretization(mdat_files[comm.rank])
             kern_old = np.squeeze(tmp_mdat['kern_old'])
             all_step_ratios = np.squeeze(tmp_mdat['step_ratios'])
-            chain_length = disc.check_nums()/num_chains
+            chain_length = disc.check_nums() // num_chains
+    
         elif hot_start == 1 and len(mdat_files) != comm.size:
             logging.info("HOT START using parallel files (diff nproc)")
             # Determine how many processors the previous data used
@@ -130,8 +131,7 @@ def loadmat(save_file, lb_model=None, hot_start=None, num_chains=None):
             old_num_proc = max((len(mdat_list), 1))
             old_num_chains_pproc = num_chains // old_num_proc
             # get batch size and/or number of dimensions
-            chain_length = disc_global[0].check_nums() // \
-                old_num_chains_pproc
+            chain_length = disc_global[0].check_nums() // old_num_chains_pproc
             disc = disc_global[0].copy()
             # create lists of local data
             temp_input = []
@@ -169,12 +169,10 @@ def loadmat(save_file, lb_model=None, hot_start=None, num_chains=None):
         disc.local_to_global()
         # reshape if parallel
         if comm.size > 1:
-            temp_input = np.reshape(disc._input_sample_set.
-                                    get_values(), (num_chains, chain_length,
-                                                   -1), 'F')
-            temp_output = np.reshape(disc._output_sample_set.
-                                     get_values(), (num_chains, chain_length,
-                                                    -1), 'F')
+            temp_input = np.reshape(disc._input_sample_set.get_values(),
+                                    (num_chains, chain_length, -1), 'F')
+            temp_output = np.reshape(disc._output_sample_set.get_values(),
+                                     (num_chains, chain_length, -1), 'F')
             all_step_ratios = np.reshape(all_step_ratios,
                                          (num_chains, chain_length), 'F')
     # SPLIT DATA IF NECESSARY
@@ -220,16 +218,16 @@ class sampler(bsam.sampler):
         super(sampler, self).__init__(lb_model, num_samples)
         #: number of batches of samples
         self.chain_length = chain_length
-        #: number of samples per processor per batch (either a single int or a
-        #:  list of int)
+        #: number of samples per processor per batch (either a single int or
+        #: a list of int)
         self.num_chains_pproc = int(math.ceil(num_samples /
                                               float(chain_length * comm.size)))
         #: number of samples per batch (either a single int or a list of int)
         self.num_chains = comm.size * self.num_chains_pproc
         #: Total number of samples
         self.num_samples = chain_length * self.num_chains
-        #: runs the model at a given set of parameter samples, (N,
-        #:    ndim), and returns data (N, mdim)
+        #: runs the model at a given set of parameter samples, (N, ndim), 
+        #: and returns data (N, mdim)
         self.lb_model = lb_model
         #: batch number for this particular chain
         self.sample_batch_no = np.repeat(np.arange(self.num_chains),

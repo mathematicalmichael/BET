@@ -145,13 +145,13 @@ def load_sample_set(file_name, sample_set_name=None, localize=True):
     if sample_set_name is None:
         sample_set_name = 'default'
     
-    if sample_set_name+"_dim" in mdat.keys():
+    if sample_set_name+"_dim" in list(mdat.keys()):
         classname = mdat[sample_set_name + '_sample_set_type'][0]
         exec('import '+classname.rpartition('.')[0])
         loaded_set = eval(classname)(
             np.squeeze(mdat[sample_set_name+"_dim"]))
     else:
-        logging.info("No sample_set named {} with _dim in file".
+        logging.info("Serial: No sample_set named {} with _dim in file".
                      format(sample_set_name))
         return None
 
@@ -227,7 +227,9 @@ def load_sample_set_parallel(file_name, sample_set_name=None):
         # Determine how many processors the previous data used
         # otherwise gather the data from mdat and then scatter
         # among the processors and update mdat
-        mdat_files_local = np.array_split(mdat_files, comm.size)[comm.rank]
+        mdat_files_local = comm.scatter(mdat_files)
+        # mdat_files_local = np.array_split(mdat_files, comm.size)[comm.rank]
+        
         mdat_local = [sio.loadmat(m) for m in mdat_files_local]
         mdat_list = comm.allgather(mdat_local)
         mdat_global = []
@@ -235,7 +237,7 @@ def load_sample_set_parallel(file_name, sample_set_name=None):
         for mlist in mdat_list:
             mdat_global.extend(mlist)
         
-        if sample_set_name+"_dim" in mdat_global[0].keys():
+        if sample_set_name+"_dim" in list(mdat_global[0].keys()):
             # use eval to import the correct module which is the portion of the
             # sample set type to the right of the last period (leave off the
             # class)
@@ -245,7 +247,7 @@ def load_sample_set_parallel(file_name, sample_set_name=None):
             loaded_set = eval(classname)(\
                     np.squeeze(mdat_global[0][sample_set_name+"_dim"]))
         else:
-            logging.info("No sample_set named {} with _dim in file".
+            logging.info("Parallel: No sample_set named {} with _dim in file".
                          format(sample_set_name))
             return None
 
@@ -1343,14 +1345,14 @@ def load_discretization_parallel(file_name, discretization_name=None):
             "proc*_{}".format(base_name))+'.mat')
 
     if len(mdat_files) == comm.size:
-        logging.info("Loading {} sample set using parallel files (same nproc)"
+        logging.info("Loading {} discretization using parallel files (same nproc)"
                      .format(discretization_name))
         # if the number of processors is the same then set mdat to
         # be the one with the matching processor number (doesn't
         # really matter)
         return load_discretization(mdat_files[comm.rank][:-4], discretization_name)
     else:
-        logging.info("Loading {} sample set using parallel files (diff nproc)"
+        logging.info("Loading {} discretization using parallel files (diff nproc)"
                      .format(discretization_name))
 
         if discretization_name is None:
