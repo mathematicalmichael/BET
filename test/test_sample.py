@@ -2517,5 +2517,3 @@ class Test_sampling_repeated(Test_sampling_data_driven):
         self.num_data = 100
         self.disc.data_driven(np.ones(self.num_data), std=self.std)
         self.disc.set_repeated()
-
-
