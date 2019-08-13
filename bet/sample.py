@@ -2814,6 +2814,13 @@ class discretization(object):
             current_array = getattr(self, array_name)
             if current_array is not None:
                 setattr(my_copy, array_name, np.copy(current_array))
+        # copy setup information
+        if self._setup is not None:
+            import copy
+            my_copy._setup = copy.deepcopy(self._setup)
+        initial = self.get_initial()
+        if initial is not None:
+            my_copy.set_initial(initial.dist, gen=False, *initial.args, **initial.kwds)
         return my_copy
 
     def get_input_sample_set(self):
@@ -3251,7 +3258,8 @@ class discretization(object):
         """
         if dist is None:
             return self.compute_pushforward(dist, iteration)
-        elif isinstance(dist, scipy.stats._distn_infrastructure.rv_frozen):
+        elif isinstance(dist, scipy.stats._continuous_distns.rv_continuous) or \
+             isinstance(dist, scipy.stats._distn_infrastructure.rv_frozen):
             self._output_sample_set.set_distribution(dist, *args, **kwds)
             if iteration is None:
                 iteration = self._iteration
@@ -3286,34 +3294,34 @@ class discretization(object):
             self._input_sample_set.set_distribution(dist, *args, **kwds)
         if gen:
             self._input_sample_set.generate_samples(num)
-        # map output samples
-        lam_ref = self._input_sample_set._reference_value
-        # initialize output samples
-        y = np.zeros((num, 1))  # temporary vector of correct shape
-        v = np.array([])
-        # TK - TODO: support string-indexed dictionaries, consistent order,
-        # unify with pdf methods.
-        for iteration in self._setup.keys():  # map through every model
-            # clear all push-forwards
-            self._setup[iteration]['pre'] = None
-            model = self._setup[iteration]['model']
-            # ensure model output size is consistent
-            if model is not None:
-                z = model(self._input_sample_set._values)
-                if lam_ref is not None:
-                    try:  # handle reference value
-                        v = np.concatenate((v, model(lam_ref)), axis=0)
-                    except ValueError:  # handle scalar models
-                        v = np.column_stack((v, model(lam_ref).reshape(1,)))
-                try:
-                    y = np.column_stack((y, z))
-                except np.AxisError:  # handle scalar models
-                    y = np.concatenate((y, z.reshape(-1, 1)), axis=1)
+            # map output samples
+            lam_ref = self._input_sample_set._reference_value
+            # initialize output samples
+            y = np.zeros((num, 1))  # temporary vector of correct shape
+            v = np.array([])
+            # TK - TODO: support string-indexed dictionaries, consistent order,
+            # unify with pdf methods.
+            for iteration in self._setup.keys():  # map through every model
+                # clear all push-forwards
+                self._setup[iteration]['pre'] = None
+                model = self._setup[iteration]['model']
+                # ensure model output size is consistent
+                if model is not None:
+                    z = model(self._input_sample_set._values)
+                    if lam_ref is not None:
+                        try:  # handle reference value
+                            v = np.concatenate((v, model(lam_ref)), axis=0)
+                        except ValueError:  # handle scalar models
+                            v = np.column_stack((v, model(lam_ref).reshape(1,)))
+                    try:
+                        y = np.column_stack((y, z))
+                    except np.AxisError:  # handle scalar models
+                        y = np.concatenate((y, z.reshape(-1, 1)), axis=1)
             y = y[:, 1:]  # remove zeros
-        self._output_sample_set._dim = y.shape[1]
-        self._output_sample_set.set_values(y)
-        if lam_ref is not None:
-            self._output_sample_set.set_reference_value(v)
+            self._output_sample_set._dim = y.shape[1]
+            self._output_sample_set.set_values(y)
+            if lam_ref is not None:
+                self._output_sample_set.set_reference_value(v)
 
     def set_initial(self, dist=None, num=None, gen=True, *args, **kwds):
         r"""
