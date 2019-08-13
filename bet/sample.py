@@ -1429,6 +1429,7 @@ class sample_set_base(object):
         self._volumes = None
         self._jacobians = None
         self._probabilities = None
+        self._densities = None
 
     def pdf(self, x=None, dist=None):
         r"""
