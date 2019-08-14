@@ -2828,7 +2828,11 @@ class discretization(object):
             my_copy._setup = copy.deepcopy(self._setup)
         initial = self.get_initial()
         if initial is not None:
-            my_copy.set_initial(initial.dist, gen=False, *initial.args, **initial.kwds)
+            my_copy.set_initial(
+                initial.dist,
+                gen=False,
+                *initial.args,
+                **initial.kwds)
         return my_copy
 
     def get_input_sample_set(self):
@@ -3267,7 +3271,7 @@ class discretization(object):
         if dist is None:
             return self.compute_pushforward(dist, iteration)
         elif isinstance(dist, scipy.stats._continuous_distns.rv_continuous) or \
-             isinstance(dist, scipy.stats._distn_infrastructure.rv_frozen):
+                isinstance(dist, scipy.stats._distn_infrastructure.rv_frozen):
             self._output_sample_set.set_distribution(dist, *args, **kwds)
             if iteration is None:
                 iteration = self._iteration
@@ -3320,7 +3324,8 @@ class discretization(object):
                         try:  # handle reference value
                             v = np.concatenate((v, model(lam_ref)), axis=0)
                         except ValueError:  # handle scalar models
-                            v = np.column_stack((v, model(lam_ref).reshape(1,)))
+                            v = np.column_stack(
+                                (v, model(lam_ref).reshape(1,)))
                     try:
                         y = np.column_stack((y, z))
                     except np.AxisError:  # handle scalar models
