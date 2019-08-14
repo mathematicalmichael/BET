@@ -663,8 +663,8 @@ class sample_set_base(object):
         entries of the sample set if `cnum` is an integer.
         If `cum` is a list, it is used to return a selection of rows.
 
-        :param int cnum: number of values of sample set to return
-        :param list cnum: indices of sample set to return
+        :param cnum: number/selection of values of sample set to return
+        :type cnum: `int` or iterable indices into rows of sample set.
 
         :rtype: :class:`~bet.sample.sample_set`
         :returns: the clipped sample set
@@ -674,7 +674,7 @@ class sample_set_base(object):
         sset.check_num()
         if isinstance(cnum, int):
             indices = list(np.arange(cnum))
-        elif isinstance(cnum, collections.iterable):
+        elif isinstance(cnum, list) or isinstance(cnum, tuple):
             indices = cnum
 
         if sset._values is None:
