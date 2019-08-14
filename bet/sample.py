@@ -660,9 +660,11 @@ class sample_set_base(object):
     def clip(self, cnum):
         """
         Creates and returns a sample set with the the first `cnum`
-        entries of the sample set.
+        entries of the sample set if `cnum` is an integer.
+        If `cum` is a list, it is used to return a selection of rows.
 
         :param int cnum: number of values of sample set to return
+        :param list cnum: indices of sample set to return
 
         :rtype: :class:`~bet.sample.sample_set`
         :returns: the clipped sample set
@@ -670,12 +672,17 @@ class sample_set_base(object):
         """
         sset = self.copy()
         sset.check_num()
+        if isinstance(cnum, int):
+            indices = list(np.arange(cnum))
+        elif isinstance(cnum, collections.iterable):
+            indices = cnum
+
         if sset._values is None:
             sset.local_to_global()
         for array_name in self.array_names:
             current_array = getattr(sset, array_name)
             if current_array is not None:
-                new_array = current_array[0:cnum]
+                new_array = current_array[indices]
                 setattr(sset, array_name, new_array)
         if sset._values_local is not None:
             sset.global_to_local()
@@ -3102,7 +3109,7 @@ class discretization(object):
 
     def choose_outputs(self, outputs=None):
         """
-        Slices outputs of discretization and returns object with the
+        Slices outputs of discretization (columns) and returns object with the
         same input sample set. For new instances, use `choose_inputs_outputs`.
         This function is of particular use for iterated ansatzs.
 
@@ -3136,7 +3143,7 @@ class discretization(object):
                               inputs=None,
                               outputs=None):
         """
-        Slices the inputs and outputs of the discretization.
+        Slices the inputs and outputs of the discretization (columns).
 
         :param list inputs: list of indices of input sample set to include.
         :param list outputs: list of indices of output sample set to include
