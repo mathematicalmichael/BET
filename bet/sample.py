@@ -660,9 +660,11 @@ class sample_set_base(object):
     def clip(self, cnum):
         """
         Creates and returns a sample set with the the first `cnum`
-        entries of the sample set.
+        entries of the sample set if `cnum` is an integer.
+        If `cum` is a list, it is used to return a selection of rows.
 
-        :param int cnum: number of values of sample set to return
+        :param cnum: number/selection of values of sample set to return
+        :type cnum: `int` or iterable indices into rows of sample set.
 
         :rtype: :class:`~bet.sample.sample_set`
         :returns: the clipped sample set
@@ -670,12 +672,17 @@ class sample_set_base(object):
         """
         sset = self.copy()
         sset.check_num()
+        if isinstance(cnum, int):
+            indices = list(np.arange(cnum))
+        elif isinstance(cnum, list) or isinstance(cnum, tuple):
+            indices = cnum
+
         if sset._values is None:
             sset.local_to_global()
         for array_name in self.array_names:
             current_array = getattr(sset, array_name)
             if current_array is not None:
-                new_array = current_array[0:cnum]
+                new_array = current_array[indices]
                 setattr(sset, array_name, new_array)
         if sset._values_local is not None:
             sset.global_to_local()
@@ -1429,6 +1436,7 @@ class sample_set_base(object):
         self._volumes = None
         self._jacobians = None
         self._probabilities = None
+        self._densities = None
 
     def pdf(self, x=None, dist=None):
         r"""
@@ -2830,7 +2838,11 @@ class discretization(object):
             my_copy._setup = copy.deepcopy(self._setup)
         initial = self.get_initial()
         if initial is not None:
-            my_copy.set_initial(initial.dist, gen=False, *initial.args, **initial.kwds)
+            my_copy.set_initial(
+                initial.dist,
+                gen=False,
+                *initial.args,
+                **initial.kwds)
         return my_copy
 
     def get_input_sample_set(self):
@@ -3111,7 +3123,7 @@ class discretization(object):
 
     def choose_outputs(self, outputs=None):
         """
-        Slices outputs of discretization and returns object with the
+        Slices outputs of discretization (columns) and returns object with the
         same input sample set. For new instances, use `choose_inputs_outputs`.
         This function is of particular use for iterated ansatzs.
 
@@ -3145,7 +3157,7 @@ class discretization(object):
                               inputs=None,
                               outputs=None):
         """
-        Slices the inputs and outputs of the discretization.
+        Slices the inputs and outputs of the discretization (columns).
 
         :param list inputs: list of indices of input sample set to include.
         :param list outputs: list of indices of output sample set to include
@@ -3269,7 +3281,7 @@ class discretization(object):
         if dist is None:
             return self.compute_pushforward(dist, iteration)
         elif isinstance(dist, scipy.stats._continuous_distns.rv_continuous) or \
-             isinstance(dist, scipy.stats._distn_infrastructure.rv_frozen):
+                isinstance(dist, scipy.stats._distn_infrastructure.rv_frozen):
             self._output_sample_set.set_distribution(dist, *args, **kwds)
             if iteration is None:
                 iteration = self._iteration
@@ -3322,7 +3334,8 @@ class discretization(object):
                         try:  # handle reference value
                             v = np.concatenate((v, model(lam_ref)), axis=0)
                         except ValueError:  # handle scalar models
-                            v = np.column_stack((v, model(lam_ref).reshape(1,)))
+                            v = np.column_stack(
+                                (v, model(lam_ref).reshape(1,)))
                     try:
                         y = np.column_stack((y, z))
                     except np.AxisError:  # handle scalar models

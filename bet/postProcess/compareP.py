@@ -675,7 +675,8 @@ class comparison(object):
         comp = comparison(sample_set_left=left_ss,
                           sample_set_right=right_ss,
                           comparison_sample_set=comp_ss)
-        # additional attributes to copy over here. TODO: maybe slice through
+        # additional attributes to copy over here.
+        # maybe "setup"?
         return comp
 
     def global_to_local(self):
