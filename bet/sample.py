@@ -1421,8 +1421,10 @@ class sample_set_base(object):
                             int(comm.rank < num_samples % comm.size)
         self.set_values_local(self.rvs(num_samples_local,
                                        dist, *args, **kwds))
+
         if dist is not None:
             self.set_distribution(dist, *args, **kwds)
+        # clear existing arrays that depend on samples
         self.update_bounds_local()
         self._probabilities_local = None
         self._volumes_local = None
@@ -1434,6 +1436,7 @@ class sample_set_base(object):
             self.local_to_global()
         else:
             self._values = None
+        # clear existing arrays that depend on samples
         self._volumes = None
         self._jacobians = None
         self._probabilities = None
