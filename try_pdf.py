@@ -10,7 +10,7 @@ s.set_dist()
 s.generate_samples(1E7, globalize=True)
 print(datetime.now() - startTime)
 
-globalize = False
+globalize = True
 
 if comm.rank == 0 or comm.rank == comm.size-1:
     print('comm rank: %d, %d'%(comm.rank, 
@@ -26,11 +26,15 @@ if globalize:
     s.local_to_global()
     print(datetime.now() - startTime)
 
+    from scipy.stats import gaussian_kde as gkde
+    s._distribution = gkde(s.get_values().T)
+
 print('pdf computation')
 # time the pdf computation
 startTime = datetime.now()
 p = s.pdf(s.get_values())
 print(datetime.now() - startTime)
+
 
 # # print(p[0:10])
 # print(p.shape)
