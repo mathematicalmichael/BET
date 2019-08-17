@@ -221,8 +221,8 @@ def uniform_partition_uniform_distribution_rectangle_size(data_set,
     :math:`\rho_{\mathcal{D}}`.
     '''
     # Generate the samples from :math:`\rho_{\mathcal{D}}`
-    num_d_emulate_local = int((num_d_emulate / comm.size) +
-                              (comm.rank < num_d_emulate % comm.size))
+    num_d_emulate_local = int(num_d_emulate / comm.size) + \
+                          int(comm.rank < num_d_emulate % comm.size)
     d_distr_emulate = rect_size * (np.random.random((num_d_emulate_local,
                                                      dim)) - 0.5) + Q_ref
 
@@ -611,8 +611,8 @@ def normal_partition_normal_distribution(data_set, Q_ref=None, std=1, M=1,
     r'''Now compute probabilities for :math:`\rho_{\mathcal{D},M}` by sampling
     from rho_D First generate samples of rho_D - I sometimes call this
     emulation'''
-    num_d_emulate_local = int((num_d_emulate / comm.size) +
-                              (comm.rank < num_d_emulate % comm.size))
+    num_d_emulate_local = int(num_d_emulate / comm.size) + \
+                          int(comm.rank < num_d_emulate % comm.size)
     d_distr_emulate = np.zeros((num_d_emulate_local, len(Q_ref)))
     for i in range(len(Q_ref)):
         d_distr_emulate[:, i] = np.random.normal(Q_ref[i], std[i],
@@ -703,8 +703,8 @@ def uniform_partition_normal_distribution(data_set, Q_ref=None, std=1, M=1,
     r'''Now compute probabilities for :math:`\rho_{\mathcal{D},M}` by sampling
     from rho_D First generate samples of rho_D - I sometimes call this
     emulation'''
-    num_d_emulate_local = int((num_d_emulate / comm.size) +
-                              (comm.rank < num_d_emulate % comm.size))
+    num_d_emulate_local = int(num_d_emulate / comm.size) + \
+                          int(comm.rank < num_d_emulate % comm.size)
     d_distr_emulate = np.zeros((num_d_emulate_local, len(Q_ref)))
     for i in range(len(Q_ref)):
         d_distr_emulate[:, i] = np.random.normal(Q_ref[i], std[i],
