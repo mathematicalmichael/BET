@@ -1515,19 +1515,36 @@ class sample_set_base(object):
         if dist is None:
             dist = self._distribution
         if x is None:
-            x = self._values
+            if self._values_local is None:
+                self.global_to_local()
+            # if self._values is None: 
+            #     self.local_to_global()
+            x_local = self._values_local
+            num = self.check_num()
+        else:  # proessors evaluate subset of points
+            if x.ndim == 1:
+                x = x.reshape(1,-1)
+            num = x.shape[0]
+            # num_per_proc = int(num / comm.size) + \
+            #                int(comm.rank < num % comm.size)
+            # x_local = np.empty((num_per_proc, x.shape[1]), dtype='d')
+            # comm.Scatter(x, x_local, root=0)
+
+            x_local = np.array_split(x, comm.size)[comm.rank]
+
         if isinstance(dist, scipy.stats.gaussian_kde):
-            cum = dist.cdf(x.T).T  # needs transpose
+            C_local = dist.cdf(x_local.T).T  # needs transpose
         else:
             if self._dim > 1:
                 try:  # handle `scipy.stats.rv_frozen` objects
-                    cum = dist.cdf(x).prod(axis=1)
+                    C_local = dist.cdf(x_local).prod(axis=1)
                 except np.AxisError:
-                    cum = dist.cdf(x)
+                    C_local = dist.cdf(x_local)
             else:  # 1-dimensional case
-                cum = dist.cdf(x)
-        assert len(cum) == x.shape[0]
-        return cum.ravel()  # always return flattened
+                C_local = dist.cdf(x_local)
+        cumulatives = util.get_global_values(C_local)
+        assert len(cumulatives) == num
+        return cumulatives.ravel()  # always return flattened
 
     def estimate_probabilities_mc(self, globalize=True):
         """
