@@ -2344,14 +2344,16 @@ class Test_sampling_one_dim(Test_sampling_discretization):
 class Test_sampling_data_driven(Test_sampling_discretization):
     """
     If the pushforward is constant, MUD/MAP must match if there
-    is only a single observation. 
+    is only a single observation.
     """
+
     def setUp(self):
         self.dim1 = 1
         self.num = 101
         self.dim2 = 1
         # values1 = np.random.rand(self.num, self.dim1)
-        values1 = np.linspace(0,1,self.num).reshape(-1,1)
+        values1 = np.linspace(0, 1, self.num).reshape(-1, 1)
+
         def mymodel(input_values):
             try:
                 return 2 * input_values[:, np.arange(self.dim2) % self.dim1]
@@ -2369,13 +2371,13 @@ class Test_sampling_data_driven(Test_sampling_discretization):
                                           output_sample_set=self.output_set)
 
         self.disc.set_initial(dist.uniform(loc=[0] * self.dim1,
-                                   scale=[1] * self.dim1), gen=False)
+                                           scale=[1] * self.dim1), gen=False)
 
         self.model = mymodel
         self.disc.set_data_driven()
         self.std = 0.01
-        
-        true_value = np.array([0.5]*self.dim1)
+
+        true_value = np.array([0.5] * self.dim1)
         self.ans = true_value
         target_noise = self.std * np.random.randn(self.dim2)
         true_target = mymodel(true_value)
@@ -2390,16 +2392,16 @@ class Test_sampling_data_driven(Test_sampling_discretization):
         mymodel = self.model
 
         D.set_model(mymodel)
-        # make sure this function can be called. 
+        # make sure this function can be called.
         updated_pdf = D.updated_pdf()
 
         # check that correct samples received positive probability
-        expected = 0.005*updated_pdf.max()
+        expected = 0.005 * updated_pdf.max()
         # get relatively high probability samples
         pos_vals = D.get_input_values()[updated_pdf > expected, :]
         # ensure they are within 3 std deviations of true value
         nptest.assert_array_equal(pos_vals < self.ans + self.std * 3, True)
-        nptest.assert_array_equal(pos_vals > self.ans - self.std * 3, True) 
+        nptest.assert_array_equal(pos_vals > self.ans - self.std * 3, True)
         # check validity of solution against # TK - SOMETIMES FAILS
         assert np.linalg.norm(D.mud_point() - self.ans) <= 1E-2 + 1E-6
 
@@ -2436,7 +2438,7 @@ class Test_sampling_data_driven(Test_sampling_discretization):
         mud_point = D.mud_point()
         # set_output_probability_set
         # D.set_observed(scale=[self.std] * self.dim2)
-        D.set_noise_model(self.std) # is this necessary? 
+        D.set_noise_model(self.std)  # is this necessary?
         D.set_likelihood()
         map_point = D.map_point()
         nptest.assert_array_almost_equal(mud_point, map_point, 2)
@@ -2447,14 +2449,16 @@ class Test_sampling_data_driven(Test_sampling_discretization):
 class Test_sampling_data_driven_alt(Test_sampling_data_driven):
     """
     With enough data points, we should get the same solution
-    despite havin more error in observations. 
+    despite havin more error in observations.
     """
+
     def setUp(self):
         self.dim1 = 1
         self.num = 200
         self.dim2 = 50
         # values1 = np.random.rand(self.num, self.dim1)
-        values1 = np.linspace(0,1,self.num).reshape(-1,1)
+        values1 = np.linspace(0, 1, self.num).reshape(-1, 1)
+
         def mymodel(input_values):
             try:
                 return 2 * input_values[:, np.arange(self.dim2) % self.dim1]
@@ -2472,18 +2476,19 @@ class Test_sampling_data_driven_alt(Test_sampling_data_driven):
                                           output_sample_set=self.output_set)
 
         self.disc.set_initial(dist.uniform(loc=[0] * self.dim1,
-                                   scale=[1] * self.dim1), gen=False)
+                                           scale=[1] * self.dim1), gen=False)
 
         self.model = mymodel
         self.disc.set_data_driven()
         self.std = 0.05
-        
-        true_value = np.array([0.5]*self.dim1)
+
+        true_value = np.array([0.5] * self.dim1)
         self.ans = true_value
         target_noise = self.std * np.random.randn(self.dim2)
         true_target = mymodel(true_value)
         target = true_target + target_noise
         self.disc.set_data(target, std=self.std)
+
 
 class Test_sampling_repeated(Test_sampling_data_driven):
     def setUp(self):
@@ -2492,7 +2497,8 @@ class Test_sampling_repeated(Test_sampling_data_driven):
         self.dim2 = 1
         self.num_obs = 50
         # values1 = np.random.rand(self.num, self.dim1)
-        values1 = np.linspace(0,1,self.num).reshape(-1,1)
+        values1 = np.linspace(0, 1, self.num).reshape(-1, 1)
+
         def mymodel(input_values):
             return 2 * input_values
         values2 = mymodel(values1)
@@ -2507,12 +2513,12 @@ class Test_sampling_repeated(Test_sampling_data_driven):
                                           output_sample_set=self.output_set)
 
         self.disc.set_initial(dist.uniform(loc=[0] * self.dim1,
-                                   scale=[1] * self.dim1), gen=False)
+                                           scale=[1] * self.dim1), gen=False)
 
         self.model = mymodel
         self.disc.set_data_driven()
         self.std = 0.05
-        
+
         true_value = np.array([0.5])
         self.ans = true_value
         target_noise = self.std * np.random.randn(self.num_obs)
