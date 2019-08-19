@@ -5,7 +5,7 @@ startTime0 = datetime.now()
 
 print('sample generation')
 startTime = datetime.now()
-s = samp.sample_set(10)
+s = samp.sample_set(1)
 s.set_dist()
 s.generate_samples(1E7, globalize=True)
 print(datetime.now() - startTime)
@@ -25,14 +25,16 @@ if globalize:
     startTime = datetime.now()
     s.local_to_global()
     print(datetime.now() - startTime)
-
+    print('\t KDE construction')
+    startTime = datetime.now()
     from scipy.stats import gaussian_kde as gkde
     s._distribution = gkde(s.get_values().T)
+    print(datetime.now() - startTime)
 
 print('pdf computation')
 # time the pdf computation
 startTime = datetime.now()
-p = s.pdf(s.get_values())
+p = s.pdf(s.get_values()[0:100,:])
 print(datetime.now() - startTime)
 
 
