@@ -2151,7 +2151,7 @@ class Test_sampling_discretization(unittest.TestCase):
         """
         import scipy.stats as sstats
         D = self.disc
-        D.set_initial()
+        D.set_initial(dist.norm)
         assert isinstance(D.get_initial().dist,
                           sstats._continuous_distns.norm_gen)
         assert D.get_output_values().size == 0
@@ -2188,7 +2188,7 @@ class Test_sampling_discretization(unittest.TestCase):
                     return 2 * input_values[np.arange(dim) % self.dim1]
 
             D.set_model(mymodel)
-            D.set_initial()
+            D.set_initial(dist.norm)
             assert isinstance(D.get_initial_distribution().dist,
                               sstats._continuous_distns.norm_gen)
             # set_output_probability_set
@@ -2366,54 +2366,68 @@ class Test_sampling_one_dim(Test_sampling_discretization):
 
 
 class Test_sampling_data_driven(Test_sampling_discretization):
+    """
+    If the pushforward is constant, MUD/MAP must match if there
+    is only a single observation.
+    """
+
     def setUp(self):
         self.dim1 = 1
-        self.num = 300
-        self.dim2 = 10
-        values1 = np.random.rand(self.num, self.dim1)
-        values2 = np.random.randn(self.num, self.dim2)
-        self.input_values = values1
-        self.output_values = values2
-        values3 = np.ones((self.num, self.dim2))
-        self.input_set = sample.sample_set(dim=self.dim1)
-        self.output_set = sample.sample_set(dim=self.dim2)
-        self.output_probability_set = sample.sample_set(dim=self.dim2)
-        self.input_set.set_values(values1)
-        self.output_set.set_values(values2)
-        self.output_probability_set.set_values(values3)
-        self.disc = sample.discretization(input_sample_set=self.input_set,
-                                          output_sample_set=self.output_set,
-                                          output_probability_set=self.
-                                          output_probability_set)
-        self.disc.set_data_driven()
-        self.std = 0.1
-        self.disc.set_data(np.ones(self.dim2), std=self.std)
-
-    def test_solve_problem(self):
-        """
-        Solve inverse problem (input dim != output dim)
-        """
-        D = self.disc
+        self.num = 101
+        self.dim2 = 1
+        # values1 = np.random.rand(self.num, self.dim1)
+        values1 = np.linspace(0, 1, self.num).reshape(-1, 1)
 
         def mymodel(input_values):
             try:
                 return 2 * input_values[:, np.arange(self.dim2) % self.dim1]
             except IndexError:  # handle 1-d arrays (for reference vals)
                 return 2 * input_values[np.arange(self.dim2) % self.dim1]
+        values2 = mymodel(values1)
+        self.input_values = values1
+        self.output_values = values2
+        values3 = np.ones((self.num, self.dim2))
+        self.input_set = sample.sample_set(dim=self.dim1)
+        self.output_set = sample.sample_set(dim=self.dim2)
+        self.input_set.set_values(values1)
+        self.output_set.set_values(values2)
+        self.disc = sample.discretization(input_sample_set=self.input_set,
+                                          output_sample_set=self.output_set)
+
+        self.disc.set_initial(dist.uniform(loc=[0] * self.dim1,
+                                           scale=[1] * self.dim1), gen=False)
+
+        self.model = mymodel
+        self.disc.set_data_driven()
+        self.std = 0.01
+
+        true_value = np.array([0.5] * self.dim1)
+        self.ans = true_value
+        target_noise = self.std * np.random.randn(self.dim2)
+        true_target = mymodel(true_value)
+        target = true_target + target_noise
+        self.disc.set_data(target, std=self.std)
+
+    def test_solve_problem(self):
+        """
+        Solve inverse problem (input dim != output dim)
+        """
+        D = self.disc
+        mymodel = self.model
 
         D.set_model(mymodel)
-        D.set_initial(dist.uniform(loc=[0] * self.dim1,
-                                   scale=[1] * self.dim1))  # uniform [0,1]
+        # make sure this function can be called.
         updated_pdf = D.updated_pdf()
 
         # check that correct samples received positive probability
-        pos_vals = D.get_input_values()[updated_pdf > 0, :]
-        nptest.assert_array_equal(pos_vals < 0.5 + self.std * 3, True)
-        nptest.assert_array_equal(
-            pos_vals > 0.5 - self.std * 3,
-            True)  # greater than
+        expected = 0.005 * updated_pdf.max()
+        # get relatively high probability samples
+        pos_vals = D.get_input_values()[updated_pdf > expected, :]
+        # ensure they are within 3 std deviations of true value
+        nptest.assert_array_equal(pos_vals < self.ans + self.std * 3, True)
+        nptest.assert_array_equal(pos_vals > self.ans - self.std * 3, True)
         # check validity of solution against # TK - SOMETIMES FAILS
-        assert np.abs(D.mud_point() - 0.5) < 1E-2
+        assert np.linalg.norm(D.mud_point() - self.ans) <= 1E-2 + 1E-6
 
     def test_set_predicted(self):
         """
@@ -2423,19 +2437,14 @@ class Test_sampling_data_driven(Test_sampling_discretization):
         from scipy.stats import gaussian_kde as gkde
         D = self.disc
         num = 21
-
-        def mymodel(input_values):
-            try:
-                return 2 * input_values[:, np.arange(self.dim2) % self.dim1]
-            except IndexError:  # handle 1-d arrays (for reference vals)
-                return 2 * input_values[np.arange(self.dim2) % self.dim1]
+        mymodel = self.model
 
         D.set_model(mymodel)
         D.set_initial(num=num)
         assert D.check_nums() == num
         D.set_predicted()
         assert isinstance(D.get_predicted(), gkde)
-        D.set_predicted(dist.uniform(loc=0, scale=1))
+        D.set_predicted(dist.uniform(loc=0, scale=2))
         assert isinstance(D.get_predicted().dist,
                           sstats._continuous_distns.uniform_gen)
 
@@ -2444,24 +2453,16 @@ class Test_sampling_data_driven(Test_sampling_discretization):
         Test likelihood function with data-driven.
         """
         D = self.disc
-
-        def mymodel(input_values):
-            try:
-                return 2 * input_values[:, np.arange(self.dim2) % self.dim1]
-            except IndexError:  # handle 1-d arrays (for reference vals)
-                return 2 * input_values[np.arange(self.dim2) % self.dim1]
+        mymodel = self.model
 
         D.set_model(mymodel)
-        D.set_initial(dist.uniform(loc=[0] * self.dim1,
-                                   scale=[1] * self.dim1))
 
-        D.set_data([0.5] * self.dim2 + self.std * np.random.randn(self.dim2))
         D.set_predicted()
 
         mud_point = D.mud_point()
         # set_output_probability_set
         # D.set_observed(scale=[self.std] * self.dim2)
-        D.set_noise_model(self.std)
+        D.set_noise_model(self.std)  # is this necessary?
         D.set_likelihood()
         map_point = D.map_point()
         #nptest.assert_array_almost_equal(mud_point, map_point, 2)
@@ -2470,27 +2471,47 @@ class Test_sampling_data_driven(Test_sampling_discretization):
 
 
 class Test_sampling_data_driven_alt(Test_sampling_data_driven):
+    """
+    With enough data points, we should get the same solution
+    despite havin more error in observations.
+    """
+
     def setUp(self):
         self.dim1 = 1
-        self.num = 300
-        self.dim2 = 100
-        values1 = np.random.rand(self.num, self.dim1)
-        values2 = np.random.randn(self.num, self.dim2)
+        self.num = 200
+        self.dim2 = 50
+        # values1 = np.random.rand(self.num, self.dim1)
+        values1 = np.linspace(0, 1, self.num).reshape(-1, 1)
+
+        def mymodel(input_values):
+            try:
+                return 2 * input_values[:, np.arange(self.dim2) % self.dim1]
+            except IndexError:  # handle 1-d arrays (for reference vals)
+                return 2 * input_values[np.arange(self.dim2) % self.dim1]
+        values2 = mymodel(values1)
         self.input_values = values1
         self.output_values = values2
         values3 = np.ones((self.num, self.dim2))
         self.input_set = sample.sample_set(dim=self.dim1)
         self.output_set = sample.sample_set(dim=self.dim2)
-        self.output_probability_set = sample.sample_set(dim=self.dim2)
         self.input_set.set_values(values1)
         self.output_set.set_values(values2)
-        self.output_probability_set.set_values(values3)
         self.disc = sample.discretization(input_sample_set=self.input_set,
-                                          output_sample_set=self.output_set,
-                                          output_probability_set=self.
-                                          output_probability_set)
-        self.std = 0.1
-        self.disc.data_driven(np.ones(self.dim2), std=self.std)
+                                          output_sample_set=self.output_set)
+
+        self.disc.set_initial(dist.uniform(loc=[0] * self.dim1,
+                                           scale=[1] * self.dim1), gen=False)
+
+        self.model = mymodel
+        self.disc.set_data_driven()
+        self.std = 0.05
+
+        true_value = np.array([0.5] * self.dim1)
+        self.ans = true_value
+        target_noise = self.std * np.random.randn(self.dim2)
+        true_target = mymodel(true_value)
+        target = true_target + target_noise
+        self.disc.set_data(target, std=self.std)
 
 
 class Test_sampling_repeated(Test_sampling_data_driven):
@@ -2498,22 +2519,34 @@ class Test_sampling_repeated(Test_sampling_data_driven):
         self.dim1 = 1
         self.num = 300
         self.dim2 = 1
-        values1 = np.random.rand(self.num, self.dim1)
-        values2 = np.random.randn(self.num, self.dim2)
+        self.num_obs = 50
+        # values1 = np.random.rand(self.num, self.dim1)
+        values1 = np.linspace(0, 1, self.num).reshape(-1, 1)
+
+        def mymodel(input_values):
+            return 2 * input_values
+        values2 = mymodel(values1)
         self.input_values = values1
         self.output_values = values2
         values3 = np.ones((self.num, self.dim2))
         self.input_set = sample.sample_set(dim=self.dim1)
-        self.output_set = sample.sample_set(dim=self.dim2)
-        self.output_probability_set = sample.sample_set(dim=self.dim2)
+        self.output_set = sample.sample_set(dim=self.dim1)
         self.input_set.set_values(values1)
         self.output_set.set_values(values2)
-        self.output_probability_set.set_values(values3)
         self.disc = sample.discretization(input_sample_set=self.input_set,
-                                          output_sample_set=self.output_set,
-                                          output_probability_set=self.
-                                          output_probability_set)
-        self.std = 0.1
-        self.num_data = 100
-        self.disc.data_driven(np.ones(self.num_data), std=self.std)
+                                          output_sample_set=self.output_set)
+
+        self.disc.set_initial(dist.uniform(loc=[0] * self.dim1,
+                                           scale=[1] * self.dim1), gen=False)
+
+        self.model = mymodel
+        self.disc.set_data_driven()
+        self.std = 0.05
+
+        true_value = np.array([0.5])
+        self.ans = true_value
+        target_noise = self.std * np.random.randn(self.num_obs)
+        true_target = mymodel(true_value)
+        target = true_target + target_noise
+        self.disc.set_data(target, std=self.std)
         self.disc.set_repeated()
