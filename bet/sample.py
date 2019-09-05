@@ -1198,7 +1198,7 @@ class sample_set_base(object):
         num = self.check_num()
         n_mc_points = int(n_mc_points)
         n_mc_points_local = int(n_mc_points / comm.size) + \
-                            int(comm.rank < n_mc_points % comm.size)
+            int(comm.rank < n_mc_points % comm.size)
         width = self._domain[:, 1] - self._domain[:, 0]
         mc_points = width * np.random.random((n_mc_points_local,
                                               self._domain.shape[0])) +\
@@ -1418,7 +1418,7 @@ class sample_set_base(object):
             num_samples = self.check_num()
         # define local number of samples
         num_samples_local = int(num_samples / comm.size) +\
-                            int(comm.rank < num_samples % comm.size)
+            int(comm.rank < num_samples % comm.size)
         self.set_values_local(self.rvs(num_samples_local,
                                        dist, *args, **kwds))
 
@@ -1465,13 +1465,13 @@ class sample_set_base(object):
         if x is None:
             if self._values_local is None:
                 self.global_to_local()
-            # if self._values is None: 
+            # if self._values is None:
             #     self.local_to_global()
             x_local = self._values_local
             num = self.check_num()
         else:  # proessors evaluate subset of points
             if x.ndim == 1:
-                x = x.reshape(1,-1)
+                x = x.reshape(1, -1)
             num = x.shape[0]
             # num_per_proc = int(num / comm.size) + \
             #                int(comm.rank < num % comm.size)
@@ -1479,7 +1479,7 @@ class sample_set_base(object):
             # comm.Scatter(x, x_local, root=0)
 
             x_local = np.array_split(x, comm.size)[comm.rank]
-    
+
         if isinstance(dist, scipy.stats.gaussian_kde):
             D_local = dist.pdf(x_local.T).T  # needs transpose
         else:
@@ -1493,7 +1493,7 @@ class sample_set_base(object):
         comm.barrier()
         densities = util.get_global_values(D_local)
         assert len(densities) == num  # make sure we return correct size
-        return densities.ravel()  # always return flattened 
+        return densities.ravel()  # always return flattened
 
     def cdf(self, x=None, dist=None):
         r"""
@@ -1515,19 +1515,36 @@ class sample_set_base(object):
         if dist is None:
             dist = self._distribution
         if x is None:
-            x = self._values
+            if self._values_local is None:
+                self.global_to_local()
+            # if self._values is None:
+            #     self.local_to_global()
+            x_local = self._values_local
+            num = self.check_num()
+        else:  # proessors evaluate subset of points
+            if x.ndim == 1:
+                x = x.reshape(1, -1)
+            num = x.shape[0]
+            # num_per_proc = int(num / comm.size) + \
+            #                int(comm.rank < num % comm.size)
+            # x_local = np.empty((num_per_proc, x.shape[1]), dtype='d')
+            # comm.Scatter(x, x_local, root=0)
+
+            x_local = np.array_split(x, comm.size)[comm.rank]
+
         if isinstance(dist, scipy.stats.gaussian_kde):
-            cum = dist.cdf(x.T).T  # needs transpose
+            C_local = dist.cdf(x_local.T).T  # needs transpose
         else:
             if self._dim > 1:
                 try:  # handle `scipy.stats.rv_frozen` objects
-                    cum = dist.cdf(x).prod(axis=1)
+                    C_local = dist.cdf(x_local).prod(axis=1)
                 except np.AxisError:
-                    cum = dist.cdf(x)
+                    C_local = dist.cdf(x_local)
             else:  # 1-dimensional case
-                cum = dist.cdf(x)
-        assert len(cum) == x.shape[0]
-        return cum.ravel()  # always return flattened
+                C_local = dist.cdf(x_local)
+        cumulatives = util.get_global_values(C_local)
+        assert len(cumulatives) == num
+        return cumulatives.ravel()  # always return flattened
 
     def estimate_probabilities_mc(self, globalize=True):
         """
@@ -3286,12 +3303,12 @@ class discretization(object):
             iteration = self._iteration
         return self._setup[iteration]['pre']
 
-    def set_predicted_distribution(self, dist=None, 
+    def set_predicted_distribution(self, dist=None,
                                    iteration=None, *args, **kwds):
         r"""
         Wrapper for `compute_pushforward` if `dist==None`. Otherwise this
         function sets the predicted distribution (the distribution associated
-        with the `output_sample_set` in the `discretization`. 
+        with the `output_sample_set` in the `discretization`.
         """
         if dist is None:
             return self.compute_pushforward(dist, iteration)
