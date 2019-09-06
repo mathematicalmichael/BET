@@ -931,7 +931,7 @@ class Test_discretization_simple(unittest.TestCase):
             curr_attr = getattr(loaded_disc, attrname)
             if curr_attr is not None:
                 nptest.assert_array_equal(curr_attr,
-                            getattr(self.disc, attrname))
+                                          getattr(self.disc, attrname))
 
         for attrname in sample.discretization.sample_set_names:
             curr_set = getattr(loaded_disc, attrname)
@@ -941,7 +941,7 @@ class Test_discretization_simple(unittest.TestCase):
                     curr_attr = getattr(curr_set, set_attrname)
                     if curr_attr is not None:
                         nptest.assert_array_equal(curr_attr,
-                             getattr(curr_set, set_attrname))
+                                                  getattr(curr_set, set_attrname))
         comm.barrier()
 
         if comm.rank == 0 and globalize:
