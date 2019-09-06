@@ -1670,9 +1670,9 @@ def load_discretization_parallel(file_name, discretization_name=None):
             warn_string = "Local pointers have been removed and will be"
             warn_string += " re-created as necessary)"
             warnings.warn(warn_string)
-            #loaded_disc._io_ptr_local = None
-            #loaded_disc._emulated_ii_ptr_local = None
-            #loaded_disc._emulated_oo_ptr_local = None
+            loaded_disc._io_ptr_local = None
+            loaded_disc._emulated_ii_ptr_local = None
+            loaded_disc._emulated_oo_ptr_local = None
     return loaded_disc
 
 
@@ -2644,6 +2644,7 @@ class discretization(object):
 
         if output_sample_set is not None:
             self.check_nums()
+            # TK - edit this out 
             if output_probability_set is not None:
                 self.set_io_ptr(globalize=True)
         else:

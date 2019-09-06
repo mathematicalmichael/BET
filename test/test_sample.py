@@ -904,14 +904,16 @@ class Test_discretization_simple(unittest.TestCase):
                         sample.sample_set.all_ndarray_names:
                     curr_attr = getattr(curr_set, set_attrname)
                     if curr_attr is not None:
-                        nptest.assert_array_equal(curr_attr, getattr(
-                            curr_set, set_attrname))
+                        nptest.assert_array_equal(curr_attr,
+                            getattr(curr_set, set_attrname))
         comm.barrier()
 
         if comm.rank == 0 and globalize:
             os.remove(local_file_name)
         elif not globalize:
             os.remove(local_file_name)
+
+        # run test with globalize=False
         globalize = False
         sample.save_discretization(self.disc, file_name, "TEST", globalize)
         comm.barrier()
@@ -928,8 +930,8 @@ class Test_discretization_simple(unittest.TestCase):
         for attrname in sample.discretization.vector_names:
             curr_attr = getattr(loaded_disc, attrname)
             if curr_attr is not None:
-                nptest.assert_array_equal(curr_attr, getattr(self.disc,
-                                                             attrname))
+                nptest.assert_array_equal(curr_attr,
+                            getattr(self.disc, attrname))
 
         for attrname in sample.discretization.sample_set_names:
             curr_set = getattr(loaded_disc, attrname)
@@ -938,8 +940,8 @@ class Test_discretization_simple(unittest.TestCase):
                         sample.sample_set.all_ndarray_names:
                     curr_attr = getattr(curr_set, set_attrname)
                     if curr_attr is not None:
-                        nptest.assert_array_equal(curr_attr, getattr(
-                            curr_set, set_attrname))
+                        nptest.assert_array_equal(curr_attr,
+                             getattr(curr_set, set_attrname))
         comm.barrier()
 
         if comm.rank == 0 and globalize:
