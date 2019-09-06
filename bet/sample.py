@@ -2645,8 +2645,8 @@ class discretization(object):
         if output_sample_set is not None:
             self.check_nums()
             # TK - edit this out 
-            if output_probability_set is not None:
-                self.set_io_ptr(globalize=True)
+            # if output_probability_set is not None:
+            #    self.set_io_ptr(globalize=True)
         else:
             logging.info("No output_sample_set")
 
@@ -2939,6 +2939,7 @@ class discretization(object):
                     try:
                         self.set_io_ptr(globalize=False)
                     except dim_not_matching:  # handle data-driven case
+                        raise AttributeError("DATA DRIVEN")
                         self._io_ptr_local = np.arange(num)
 
     def get_emulated_output_sample_set(self):
