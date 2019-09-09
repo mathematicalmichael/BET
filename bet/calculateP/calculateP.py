@@ -46,6 +46,9 @@ def prob_on_emulated_samples(discretization, globalize=True):
     else:
         op_num = discretization._output_probability_set.check_num()
 
+    if discretization._io_ptr_local is None:
+        discretization.set_io_ptr(globalize=True)
+
     if discretization._emulated_ii_ptr_local is None:
         discretization.set_emulated_ii_ptr(globalize=False)
 
@@ -91,6 +94,9 @@ def prob(discretization, globalize=True):
     else:
         op_num = discretization._output_probability_set.check_num()
 
+    # Check for necessary attributes
+    if discretization._io_ptr_local is None:
+        discretization.set_io_ptr(globalize=False)
     if discretization._input_sample_set._probabilities_local is None:
         if discretization._input_sample_set._volumes_local is None:
             msg = "No volumes or initial probabilities. "

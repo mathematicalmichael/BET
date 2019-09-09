@@ -904,14 +904,16 @@ class Test_discretization_simple(unittest.TestCase):
                         sample.sample_set.all_ndarray_names:
                     curr_attr = getattr(curr_set, set_attrname)
                     if curr_attr is not None:
-                        nptest.assert_array_equal(curr_attr, getattr(
-                            curr_set, set_attrname))
+                        nptest.assert_array_equal(curr_attr,
+                            getattr(curr_set, set_attrname))
         comm.barrier()
 
         if comm.rank == 0 and globalize:
             os.remove(local_file_name)
         elif not globalize:
             os.remove(local_file_name)
+
+        # run test with globalize=False
         globalize = False
         sample.save_discretization(self.disc, file_name, "TEST", globalize)
         comm.barrier()
@@ -928,8 +930,8 @@ class Test_discretization_simple(unittest.TestCase):
         for attrname in sample.discretization.vector_names:
             curr_attr = getattr(loaded_disc, attrname)
             if curr_attr is not None:
-                nptest.assert_array_equal(curr_attr, getattr(self.disc,
-                                                             attrname))
+                nptest.assert_array_equal(curr_attr,
+                                          getattr(self.disc, attrname))
 
         for attrname in sample.discretization.sample_set_names:
             curr_set = getattr(loaded_disc, attrname)
@@ -938,8 +940,8 @@ class Test_discretization_simple(unittest.TestCase):
                         sample.sample_set.all_ndarray_names:
                     curr_attr = getattr(curr_set, set_attrname)
                     if curr_attr is not None:
-                        nptest.assert_array_equal(curr_attr, getattr(
-                            curr_set, set_attrname))
+                        nptest.assert_array_equal(curr_attr,
+                                                  getattr(curr_set, set_attrname))
         comm.barrier()
 
         if comm.rank == 0 and globalize:
@@ -1421,8 +1423,8 @@ class Test_rectangle_sample_set(unittest.TestCase):
         nprocs = 8
         self.nprocs = nprocs
         n = np.linspace(0.1, 0.9, nprocs)
-        maxes = [[n[-i], n[-i]] for i in range(1, nprocs)]
-        mins = [[n[i], n[i]] for i in range(nprocs - 1)][::-1]
+        maxes = [[n[i], n[i]] for i in range(1, nprocs)]
+        mins = [[n[i], n[i]] for i in range(nprocs - 1)]
         self.sam_set.setup(maxes, mins)
         self.domain = np.array([[0, 1], [0, 1]], dtype=np.float)
         self.sam_set.set_domain(self.domain)
@@ -1540,7 +1542,7 @@ class Test_rectangle_sample_set(unittest.TestCase):
         x = np.array([[n[i] + 1E-5, n[i] + 1E-5]
                       for i in range(self.nprocs - 1)])
         (d, ptr) = self.sam_set.query(x)
-        nptest.assert_array_equal(ptr, np.arange(self.nprocs - 1)[::-1])
+        nptest.assert_array_equal(ptr, np.arange(self.nprocs - 1))
 
     def test_volumes(self):
         """
@@ -2384,6 +2386,7 @@ class Test_sampling_data_driven(Test_sampling_discretization):
             except IndexError:  # handle 1-d arrays (for reference vals)
                 return 2 * input_values[np.arange(self.dim2) % self.dim1]
         values2 = mymodel(values1)
+
         self.input_values = values1
         self.output_values = values2
         values3 = np.ones((self.num, self.dim2))
@@ -2489,6 +2492,7 @@ class Test_sampling_data_driven_alt(Test_sampling_data_driven):
             except IndexError:  # handle 1-d arrays (for reference vals)
                 return 2 * input_values[np.arange(self.dim2) % self.dim1]
         values2 = mymodel(values1)
+
         self.input_values = values1
         self.output_values = values2
         values3 = np.ones((self.num, self.dim2))
