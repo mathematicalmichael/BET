@@ -905,7 +905,8 @@ class Test_discretization_simple(unittest.TestCase):
                     curr_attr = getattr(curr_set, set_attrname)
                     if curr_attr is not None:
                         nptest.assert_array_equal(curr_attr,
-                                                  getattr(curr_set, set_attrname))
+                                                  getattr(curr_set,
+                                                  set_attrname))
         comm.barrier()
 
         if comm.rank == 0 and globalize:
@@ -941,7 +942,8 @@ class Test_discretization_simple(unittest.TestCase):
                     curr_attr = getattr(curr_set, set_attrname)
                     if curr_attr is not None:
                         nptest.assert_array_equal(curr_attr,
-                                                  getattr(curr_set, set_attrname))
+                                                  getattr(curr_set,
+                                                          set_attrname))
         comm.barrier()
 
         if comm.rank == 0 and globalize:
@@ -2468,7 +2470,7 @@ class Test_sampling_data_driven(Test_sampling_discretization):
         D.set_noise_model(self.std)  # is this necessary?
         D.set_likelihood()
         map_point = D.map_point()
-        #nptest.assert_array_almost_equal(mud_point, map_point, 2)
+        # nptest.assert_array_almost_equal(mud_point, map_point, 2)
         assert np.linalg.norm(mud_point - map_point) / \
             np.linalg.norm(map_point) < 0.05
 
