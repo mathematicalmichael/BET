@@ -905,7 +905,7 @@ class Test_discretization_simple(unittest.TestCase):
                     curr_attr = getattr(curr_set, set_attrname)
                     if curr_attr is not None:
                         nptest.assert_array_equal(curr_attr,
-                            getattr(curr_set, set_attrname))
+                                                  getattr(curr_set, set_attrname))
         comm.barrier()
 
         if comm.rank == 0 and globalize:
