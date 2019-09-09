@@ -178,10 +178,12 @@ def verify_samples(QoI_range, sampler, input_domain,
     saved_disc.local_to_global()
 
     # # compare the input
-    nptest.assert_array_equal(my_discretization._input_sample_set.get_values(),
+    nptest.assert_array_equal(my_discretization._input_sample_set.
+                              get_values(),
                               saved_disc._input_sample_set.get_values())
     # compare the output
-    nptest.assert_array_equal(my_discretization._output_sample_set.get_values(),
+    nptest.assert_array_equal(my_discretization._output_sample_set.
+                              get_values(),
                               saved_disc._output_sample_set.get_values())
 
     nptest.assert_array_equal(all_step_ratios, mdat['step_ratios'])
