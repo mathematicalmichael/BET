@@ -2690,7 +2690,7 @@ class discretization(object):
 
         if output_sample_set is not None:
             self.check_nums()
-            # TK - edit this out 
+            # TK - edit this out
             # if output_probability_set is not None:
             #    self.set_io_ptr(globalize=True)
         else:
