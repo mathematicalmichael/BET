@@ -904,8 +904,8 @@ class Test_discretization_simple(unittest.TestCase):
                         sample.sample_set.all_ndarray_names:
                     curr_attr = getattr(curr_set, set_attrname)
                     if curr_attr is not None:
-                        nptest.assert_array_equal(curr_attr, getattr(
-                            curr_set, set_attrname))
+                        nptest.assert_array_equal(curr_attr,
+                                                  getattr(curr_set, set_attrname))
         comm.barrier()
 
         if comm.rank == 0 and globalize:
@@ -1822,7 +1822,8 @@ class Test_cartesian_sample_set(unittest.TestCase):
         """
         self.sam_set.exact_volume_lebesgue()
         volumes = self.sam_set.get_volumes()
-        nptest.assert_array_almost_equal(volumes, [.25, 0.25, 0.25, 0.25, 0.0])
+        vols = [.25, 0.25, 0.25, 0.25, 0.0]
+        nptest.assert_array_almost_equal(volumes, vols)
 
 
 class Test_sampling_discretization(unittest.TestCase):

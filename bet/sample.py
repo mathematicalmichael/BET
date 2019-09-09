@@ -2080,7 +2080,8 @@ class voronoi_sample_set(sample_set_base):
             # Calculate mean, std of pairwise distances
             # TODO this may be too large/small
             # Estimate radius as 2.*STD of the pairwise distance
-            sample_radii[sample_radii <= 0] = prob_est_radii[sample_radii <= 0]
+            sample_radii[sample_radii <=
+                         0] = prob_est_radii[sample_radii <= 0]
 
         # determine the volume of the Lp ball
         if not np.isinf(self._p_norm):
@@ -2361,7 +2362,10 @@ class rectangle_sample_set(sample_set_base):
         num = self.check_num()
         self._volumes = np.zeros((num, ))
         domain_width = self._domain[:, 1] - self._domain[:, 0]
-        self._volumes[0:-1] = np.prod(self._width[0:-1] / domain_width, axis=1)
+        self._volumes[0:-
+                      1] = np.prod(self._width[0:-
+                                               1] /
+                                   domain_width, axis=1)
         self._volumes[-1] = 1.0 - np.sum(self._volumes[0:-1])
 
 
@@ -2389,10 +2393,12 @@ class ball_sample_set(sample_set_base):
 
         """
         if len(centers) != len(radii):
-            raise length_not_matching("Different number of centers and radii.")
+            raise length_not_matching(
+                "Different number of centers and radii.")
         for i in range(len(centers)):
             if len(centers[i]) != self._dim:
-                msg = "Center " + repr(i) + " has the wrong number of entries."
+                msg = "Center " + repr(i) + \
+                    " has the wrong number of entries."
                 raise length_not_matching(msg)
         values = np.zeros((len(centers) + 1, self._dim))
         values[0:-1, :] = centers
@@ -3380,7 +3386,8 @@ class discretization(object):
         self._setup[iteration]['obs'] = obs_dist
 
         # Store information about standard deviation for later use.
-        logging.info("Setting standard deviation information for output data.")
+        logging.info(
+            "Setting standard deviation information for output data.")
         self.set_std(obs_dist.std(), iteration=iteration)
 
     def set_observed(self, dist=None, iteration=None, *args, **kwds):
@@ -3401,7 +3408,8 @@ class discretization(object):
 
         if dist is None:
             from scipy.stats import gaussian_kde as gkde
-            self._output_sample_set._distribution = gkde(data.T, *args, **kwds)
+            self._output_sample_set._distribution = gkde(
+                data.T, *args, **kwds)
         elif isinstance(dist, str):
             self._output_sample_set.set_distribution(dist, *args, **kwds)
         else:

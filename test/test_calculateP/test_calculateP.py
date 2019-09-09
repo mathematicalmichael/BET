@@ -301,11 +301,13 @@ class TestProbMethod_10to4(unittest.TestCase):
         self.lam_domain[:, 1] = 1.0
         self.inputs.set_domain(self.lam_domain)
         self.inputs = bsam.random_sample_set('r',
-                                             self.inputs.get_domain(), num_samples=101, globalize=True)
+                                             self.inputs.get_domain(),
+                                             num_samples=101, globalize=True)
         self.outputs.set_values(np.dot(self.inputs._values, rnd.rand(10, 4)))
         Q_ref = np.mean(self.outputs._values, axis=0)
         self.inputs_emulated = bsam.random_sample_set('r',
-                                                      self.inputs.get_domain(), num_samples=1001, globalize=True)
+                                                      self.inputs.get_domain(),
+                                                      num_samples=1001, globalize=True)
         self.output_prob = simpleFunP.regular_partition_uniform_distribution_rectangle_scaled(
             self.outputs, Q_ref=Q_ref, rect_scale=0.2, cells_per_dimension=1)
         self.disc = samp.discretization(input_sample_set=self.inputs,
