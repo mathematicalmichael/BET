@@ -3402,10 +3402,12 @@ class discretization(object):
         """
         return self.set_initial_distribution(dist, num, gen, *args, **kwds)
 
-    def set_observed_distribution(
-            self, dist=None, iteration=None, *args, **kwds):
+    def set_observed_distribution(self, dist=None, iteration=None,
+                                  *args, **kwds):
         r"""
-        Set output_probability_set._distribution. Default assumption is N(0,1).
+        Sets output_probability_set._distribution.
+        Default assumption is N(0,1) in all dimensions.
+        
         """
 
         # the purpose of the probability set is to hold the evaluations
@@ -4171,10 +4173,10 @@ class discretization(object):
         if std is None:  # nothing passed
             if self._setup[iteration]['std'] is None:  # nothing written
                 if self._setup[iteration]['obs'] is None:
-                    logging.warning(
+                    logging.info(
                         "Defaulting to estimating using data sample variance.")
                 else:  # use observed to infer std if it is missing.
-                    logging.warning(
+                    logging.info(
                         "Inferring standard deviation from observed.")
                     # method std() belongs to distribution
         else:  # write as-is if anything except None
@@ -4201,8 +4203,13 @@ class discretization(object):
                     else:
                         msg = "Wrong size std (mismatch with data indices)."
                         raise dim_not_matching(msg)
+        # if data-driven mode, erase predicted
+        if self._setup[iteration]['col']:
+            msg = "Removing predicted distribution because assumed"
+            msg += "standard deviation has been overwritten."
+            logging.warn(msg)
+            self._setup[iteration]['pre'] = None
 
-        self._setup[iteration]['pre'] = None
         self._setup[self._iteration]['std'] = std
         # return what will result from setting the std this way.
         return self.get_std(iteration)
