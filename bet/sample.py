@@ -46,7 +46,7 @@ class wrong_p_norm(Exception):
     Exception for when the dimension of the array is inconsistent.
     """
 
-    
+
 def loadmat(filename):
     """
     Replacement for sio.loadmat
