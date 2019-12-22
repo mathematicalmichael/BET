@@ -15,7 +15,6 @@ import logging
 import warnings
 import glob
 import numpy as np
-# import scipy.io as sio
 from pyDOE import lhs
 from bet.Comm import comm
 import bet.sample as sample

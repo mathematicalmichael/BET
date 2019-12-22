@@ -15,7 +15,6 @@ import os
 import glob
 import logging
 import numpy as np
-# import scipy.io as sio
 import bet.sampling.basicSampling as bsam
 import bet.util as util
 from bet.Comm import comm

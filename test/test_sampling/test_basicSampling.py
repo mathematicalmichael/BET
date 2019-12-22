@@ -9,7 +9,6 @@ import os
 import pyDOE
 import numpy.testing as nptest
 import numpy as np
-import scipy.io as sio
 import bet
 import bet.sampling.basicSampling as bsam
 from bet.Comm import comm
@@ -38,8 +37,8 @@ def test_loadmat():
     my_input2 = sample_set(1)
     my_input2.set_values(np.random.random((6, 1)))
 
-    sio.savemat(os.path.join(local_path, 'testfile1'), mdat1)
-    sio.savemat(os.path.join(local_path, 'testfile2'), mdat2)
+    bet.sample.savemat(os.path.join(local_path, 'testfile1'), mdat1)
+    bet.sample.savemat(os.path.join(local_path, 'testfile2'), mdat2)
 
     bet.sample.save_discretization(disc(my_input1, my_output),
                                    (os.path.join(local_path, 'testfile1')), globalize=True)
@@ -104,8 +103,8 @@ def test_loadmat_parallel():
         local_file_name1 = file_name1
         local_file_name2 = file_name2
 
-    sio.savemat(local_file_name1, mdat1)
-    sio.savemat(local_file_name2, mdat2)
+    bet.sample.savemat(local_file_name1, mdat1)
+    bet.sample.savemat(local_file_name2, mdat2)
     comm.barrier()
 
     bet.sample.save_discretization(disc(my_input1, my_output1),
@@ -173,7 +172,7 @@ def verify_compute_QoI_and_create_discretization(model, sampler,
 
     # did the file get correctly saved?
     saved_disc = bet.sample.load_discretization(savefile)
-    mdat = sio.loadmat(savefile)
+    mdat = bet.sample.loadmat(savefile)
     print("HERE HERE", mdat, my_num)
     # comm.barrier()
     # compare the samples
@@ -224,7 +223,7 @@ def verify_add_qoi(model, sampler,
 
     # did the file get correctly saved?
     saved_disc = bet.sample.load_discretization(savefile)
-    mdat = sio.loadmat(savefile)
+    mdat = bet.sample.loadmat(savefile)
     print("HERE HERE", mdat, my_num)
     # comm.barrier()
     # compare the samples
@@ -292,7 +291,7 @@ def verify_add_qoi_with_data(model, sampler,
 
     # did the file get correctly saved?
     saved_disc = bet.sample.load_discretization(savefile)
-    mdat = sio.loadmat(savefile)
+    mdat = bet.sample.loadmat(savefile)
     print("HERE HERE", mdat, my_num)
     # comm.barrier()
     # compare the samples

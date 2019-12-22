@@ -16,7 +16,6 @@ import numpy as np
 import math as math
 import numpy.linalg as linalg
 import scipy.spatial as spatial
-import scipy.io as sio
 import scipy.stats
 import bet
 from bet.Comm import comm, MPI
