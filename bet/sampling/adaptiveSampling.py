@@ -45,7 +45,6 @@ def loadmat(save_file, lb_model=None, hot_start=None, num_chains=None):
         ``kern_old``)
 
     """
-    print(hot_start)
     if hot_start is None:
         hot_start = 1
     # LOAD FILES
@@ -94,7 +93,6 @@ def loadmat(save_file, lb_model=None, hot_start=None, num_chains=None):
             # if the number of processors is the same then set mdat to
             # be the one with the matching processor number (doesn't
             # really matter)
-            print(mdat_files[comm.rank])
             disc = sample.load_discretization(mdat_files[comm.rank])
             kern_old = np.squeeze(tmp_mdat['kern_old'])
             all_step_ratios = np.squeeze(tmp_mdat['step_ratios'])
