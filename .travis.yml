@@ -2,9 +2,10 @@ dist: xenial
 language: python
 
 python:
-    - "2.7"
+    - "3.5"
     - "3.6"
     - "3.7"
+    - "3.8"
 
 services:
   - xvfb
@@ -36,7 +37,7 @@ branches:
     only:
         - master
         - sample
-        - sample-dev
+        - develop
 
 # Push the results back to codecov
 after_success:
