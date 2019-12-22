@@ -16,13 +16,12 @@ import numpy as np
 import math as math
 import numpy.linalg as linalg
 import scipy.spatial as spatial
-import scipy.io as sio
 import scipy.stats
 import bet
 from bet.Comm import comm, MPI
 import bet.util as util
 import bet.sampling.LpGeneralizedSamples as lp
-
+import pickle
 
 class length_not_matching(Exception):
     """
@@ -46,6 +45,26 @@ class wrong_p_norm(Exception):
     """
     Exception for when the dimension of the array is inconsistent.
     """
+
+
+def loadmat(filename):
+    """
+    Replacement for sio.loadmat
+    """
+    try:
+        with open(filename, 'rb') as input_file:
+            mdat = pickle.load(input_file)  # , encoding='utf-8')
+    except EOFError:
+        mdat = {}
+    return mdat
+
+
+def savemat(filename, data):
+    """
+    Replacement for sio.loadmat
+    """
+    with open(filename, 'wb') as output_file:
+        pickle.dump(data, output_file)
 
 
 def save_sample_set(save_set, file_name,
@@ -86,7 +105,7 @@ def save_sample_set(save_set, file_name,
     # create temporary dictionary
     if os.path.exists(local_file_name) or \
             os.path.exists(local_file_name + '.mat'):
-        new_mdat = sio.loadmat(local_file_name)
+        new_mdat = loadmat(local_file_name)
 
     # store sample set in dictionary
     if sample_set_name is None:
@@ -119,7 +138,7 @@ def save_sample_set(save_set, file_name,
 
     # save new file or append to existing file
     if (globalize and comm.rank == 0) or not globalize:
-        sio.savemat(local_file_name, new_mdat)
+        savemat(local_file_name, new_mdat)
     comm.barrier()
     return local_file_name
 
@@ -151,12 +170,12 @@ def load_sample_set(file_name, sample_set_name=None, localize=True):
                 os.path.basename(file_name)))):
         return load_sample_set_parallel(file_name, sample_set_name)
 
-    mdat = sio.loadmat(file_name)
+    mdat = loadmat(file_name)
     if sample_set_name is None:
         sample_set_name = 'default'
     mdat_keys = list(mdat.keys())
     if sample_set_name + "_dim" in mdat_keys:
-        loaded_set = eval(mdat[sample_set_name + '_sample_set_type'][0])(
+        loaded_set = eval(mdat[sample_set_name + '_sample_set_type'])(
             np.int(np.squeeze(mdat[sample_set_name + "_dim"])))
         if sample_set_name + '_dist_type' in mdat_keys:
             kwds = {}
@@ -166,8 +185,8 @@ def load_sample_set(file_name, sample_set_name=None, localize=True):
             for key in kwd_keys:
                 newkey = key.replace('dist_kwds', '').replace(
                     sample_set_name, '').replace('_', '')
-                kwds[newkey] = mdat[key][0]
-            dist = eval(mdat[sample_set_name + '_dist_type'][0])(**kwds)
+                kwds[newkey] = mdat[key]
+            dist = eval(mdat[sample_set_name + '_dist_type'])(**kwds)
             loaded_set.set_distribution(dist)
 
     else:
@@ -235,11 +254,11 @@ def load_sample_set_parallel(file_name, sample_set_name=None):
         # among the processors and update mdat
         try:
             mdat_files_local = comm.scatter(mdat_files)
-            mdat_local = [sio.loadmat(m) for m in mdat_files_local]
+            mdat_local = [loadmat(m) for m in mdat_files_local]
             mdat_list = comm.allgather(mdat_local)
         except ValueError:
             mdat_files_local = mdat_files
-            mdat_local = [sio.loadmat(m) for m in mdat_files_local]
+            mdat_local = [loadmat(m) for m in mdat_files_local]
             mdat_list = mdat_local
         mdat_global = []
         # instead of a list of lists, create a list of mdat
@@ -250,7 +269,7 @@ def load_sample_set_parallel(file_name, sample_set_name=None):
         mdat_keys = list(mdat_global[0].keys())
         if sample_set_name + "_dim" in mdat_keys:
             loaded_set = eval(mdat_global[0][sample_set_name +
-                                             '_sample_set_type'][0])(
+                                             '_sample_set_type'])(
                 np.int(np.squeeze(mdat_global[0][sample_set_name + "_dim"])))
         else:
             logging.info("No sample_set named {} with _dim in file".
@@ -265,9 +284,9 @@ def load_sample_set_parallel(file_name, sample_set_name=None):
             for key in kwd_keys:
                 newkey = key.replace('dist_kwds', '').replace(
                     sample_set_name, '').replace('_', '')
-                kwds[newkey] = mdat_global[0][key][0]
+                kwds[newkey] = mdat_global[0][key]
             dist = eval(
-                mdat_global[0][sample_set_name + '_dist_type'][0])(**kwds)
+                mdat_global[0][sample_set_name + '_dist_type'])(**kwds)
             loaded_set.set_distribution(dist)
 
         # load attributes
@@ -1610,7 +1629,7 @@ def save_discretization(save_disc, file_name, discretization_name=None,
     # create temporary dictionary
     if os.path.exists(local_file_name) or \
             os.path.exists(local_file_name + '.mat'):
-        new_mdat = sio.loadmat(local_file_name)
+        new_mdat = loadmat(local_file_name)
 
     # store discretization in dictionary
     for attrname in discretization.vector_names:
@@ -1623,7 +1642,7 @@ def save_discretization(save_disc, file_name, discretization_name=None,
 
     # save new file or append to existing file
     if (globalize and comm.rank == 0) or not globalize:
-        sio.savemat(local_file_name, new_mdat)
+        savemat(local_file_name, new_mdat)
     comm.barrier()
     return local_file_name
 
@@ -1677,7 +1696,7 @@ def load_discretization_parallel(file_name, discretization_name=None):
         # otherwise gather the data from mdat and then scatter
         # among the processors and update mdat
         mdat_files_local = comm.scatter(mdat_files)
-        mdat_local = [sio.loadmat(m) for m in mdat_files_local]
+        mdat_local = [loadmat(m) for m in mdat_files_local]
         mdat_list = comm.allgather(mdat_local)
         mdat_global = []
         # instead of a list of lists, create a list of mdat
@@ -1742,7 +1761,8 @@ def load_discretization(file_name, discretization_name=None):
             "proc{}_{}".format(comm.rank, os.path.basename(file_name)))):
         return load_discretization_parallel(file_name, discretization_name)
 
-    mdat = sio.loadmat(file_name)
+    mdat = loadmat(file_name)
+
     if discretization_name is None:
         discretization_name = 'default'
 

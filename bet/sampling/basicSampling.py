@@ -15,7 +15,6 @@ import logging
 import warnings
 import glob
 import numpy as np
-import scipy.io as sio
 from pyDOE import lhs
 from bet.Comm import comm
 import bet.sample as sample
@@ -50,10 +49,10 @@ def loadmat(save_file, disc_name=None, model=None):
         mdat_files = glob.glob(os.path.join(save_dir,
                                             "proc*_{}".format(base_name)))
         # load the data from a *.mat file
-        mdat = sio.loadmat(mdat_files[0])
+        mdat = sample.loadmat(mdat_files[0])
     else:
         # load the data from a *.mat file
-        mdat = sio.loadmat(save_file)
+        mdat = sample.loadmat(save_file)
     num_samples = mdat['num_samples']
     # load the discretization
     discretization = sample.load_discretization(save_file, disc_name)
@@ -286,7 +285,7 @@ class sampler(object):
             local_save_file = save_file
 
         if (globalize and comm.rank == 0) or not globalize:
-            sio.savemat(local_save_file, mdict)
+            sample.savemat(local_save_file, mdict)
         comm.barrier()
 
         if discretization is not None:

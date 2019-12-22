@@ -2,9 +2,10 @@ dist: xenial
 language: python
 
 python:
-    - "2.7"
+    - "3.5"
     - "3.6"
     - "3.7"
+    - "3.8"
 
 services:
   - xvfb
@@ -21,6 +22,7 @@ script:
   - nosetests --with-coverage --cover-package=bet --cover-erase --cover-html
   - mpirun -n 2 nosetests
   - pip uninstall -y mpi4py
+  - rm proc* && rm test/test_sampling/testfile*
   - nosetests
 
 # notification settings
@@ -36,7 +38,7 @@ branches:
     only:
         - master
         - sample
-        - sample-dev
+        - develop
 
 # Push the results back to codecov
 after_success:

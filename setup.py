@@ -24,6 +24,6 @@ setup(name='bet',
                 'bet.sensitivity'],
       install_requires=['matplotlib',
                         'pyDOE',
-                        'scipy<=1.2.1',
+                        'scipy',
                         'numpy',
                         'nose'])
