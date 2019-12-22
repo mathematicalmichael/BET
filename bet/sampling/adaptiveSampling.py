@@ -15,7 +15,7 @@ import os
 import glob
 import logging
 import numpy as np
-import scipy.io as sio
+# import scipy.io as sio
 import bet.sampling.basicSampling as bsam
 import bet.util as util
 from bet.Comm import comm
@@ -59,15 +59,15 @@ def loadmat(save_file, lb_model=None, hot_start=None, num_chains=None):
         mdat_files = glob.glob(os.path.join(save_dir,
                                             "proc*_{}".format(base_name)))
         if len(mdat_files) > 0:
-            tmp_mdat = sio.loadmat(mdat_files[0])
+            tmp_mdat = sample.loadmat(mdat_files[0])
         else:
-            tmp_mdat = sio.loadmat(save_file)
+            tmp_mdat = sample.loadmat(save_file)
         if num_chains is None:
             num_chains = np.squeeze(tmp_mdat['num_chains'])
         num_chains_pproc = num_chains / comm.size
         if len(mdat_files) == 0:
             logging.info("HOT START using serial file")
-            mdat = sio.loadmat(save_file)
+            mdat = sample.loadmat(save_file)
             if num_chains is None:
                 num_chains = np.squeeze(mdat['num_chains'])
             num_chains_pproc = num_chains // comm.size
@@ -95,6 +95,7 @@ def loadmat(save_file, lb_model=None, hot_start=None, num_chains=None):
             # if the number of processors is the same then set mdat to
             # be the one with the matching processor number (doesn't
             # really matter)
+            print(mdat_files[comm.rank])
             disc = sample.load_discretization(mdat_files[comm.rank])
             kern_old = np.squeeze(tmp_mdat['kern_old'])
             all_step_ratios = np.squeeze(tmp_mdat['step_ratios'])
@@ -104,7 +105,7 @@ def loadmat(save_file, lb_model=None, hot_start=None, num_chains=None):
             # otherwise gather the data from mdat and then scatter
             # among the processors and update mdat
             mdat_files_local = comm.scatter(mdat_files)
-            mdat_local = [sio.loadmat(m) for m in mdat_files_local]
+            mdat_local = [sample.loadmat(m) for m in mdat_files_local]
             disc_local = [sample.load_discretization(m) for m in
                           mdat_files_local]
             mdat_list = comm.allgather(mdat_local)
@@ -147,7 +148,7 @@ def loadmat(save_file, lb_model=None, hot_start=None, num_chains=None):
     if hot_start == 2:  # HOT START FROM COMPLETED RUN:
         if comm.rank == 0:
             logging.info("HOT START from completed run")
-        mdat = sio.loadmat(save_file)
+        mdat = sample.loadmat(save_file)
         if num_chains is None:
             num_chains = np.squeeze(mdat['num_chains'])
         num_chains_pproc = num_chains // comm.size
