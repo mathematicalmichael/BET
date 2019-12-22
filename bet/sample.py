@@ -53,7 +53,7 @@ def loadmat(filename):
     """
     try:
         with open(filename, 'rb') as input_file:
-            mdat = pickle.load(input_file)  #, encoding='utf-8')
+            mdat = pickle.load(input_file)  # , encoding='utf-8')
     except EOFError:
         mdat = {}
     return mdat
