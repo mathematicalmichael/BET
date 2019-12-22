@@ -52,10 +52,11 @@ def loadmat(filename):
     """
     try:
         with open(filename, 'rb') as input_file:
-            mdat = pickle.load(input_file)#, encoding='utf-8')
+            mdat = pickle.load(input_file)  #, encoding='utf-8')
     except EOFError:
         mdat = {}
     return mdat
+
 
 def savemat(filename, data):
     """
@@ -63,6 +64,7 @@ def savemat(filename, data):
     """
     with open(filename, 'wb') as output_file:
         pickle.dump(data, output_file)
+
 
 def save_sample_set(save_set, file_name,
                     sample_set_name=None, globalize=False):
@@ -166,7 +168,6 @@ def load_sample_set(file_name, sample_set_name=None, localize=True):
             os.path.dirname(file_name), "proc0_{}".format(
                 os.path.basename(file_name)))):
         return load_sample_set_parallel(file_name, sample_set_name)
-
 
     mdat = loadmat(file_name)
     if sample_set_name is None:

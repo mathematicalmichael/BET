@@ -60,7 +60,7 @@ def test_loadmat_init():
 
     bet.sample.savemat(os.path.join(local_path, 'testfile1'), mdat1)
     bet.sample.savemat(os.path.join(local_path, 'testfile2'), mdat2)
-    
+
     bet.sample.save_discretization(disc(my_input1, my_output1),
                                    os.path.join(local_path, 'testfile1'), globalize=True)
     bet.sample.save_discretization(disc(my_input2, my_output2),
@@ -419,8 +419,9 @@ class Test_adaptive_sampler(unittest.TestCase):
             """
             Indicator function
             """
-            inside = np.logical_and(np.all(np.greater_equal(outputs, Q_ref - .5 * bin_size), axis=1),
-                                    np.all(np.less_equal(outputs, Q_ref + .5 * bin_size), axis=1))
+            bs = .5 * bin_size
+            inside = np.logical_and(np.all(np.greater_equal(outputs, Q_ref - bs), axis=1),
+                                    np.all(np.less_equal(outputs, Q_ref + bs), axis=1))
             max_values = np.repeat(maximum, outputs.shape[0], 0)
             return inside.astype('float64') * max_values
 
