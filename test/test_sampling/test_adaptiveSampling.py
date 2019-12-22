@@ -456,7 +456,6 @@ class Test_adaptive_sampler(unittest.TestCase):
             assert asr > t_set.min_ratio
             assert asr < t_set.max_ratio
 
-    @unittest.skipIf(comm.size > 1, 'Only run in serial as (temporary) band-aid for broken I/O in parallel.')
     def test_generalized_chains(self):
         """
         Test :meth:`bet.sampling.adaptiveSampling.sampler.generalized_chains`
@@ -468,7 +467,7 @@ class Test_adaptive_sampler(unittest.TestCase):
         for _, QoI_range, sampler, input_domain, savefile in self.test_list:
             for initial_sample_type in ["random", "r", "lhs"]:
                 print("Initial sample type: %s" % (initial_sample_type))
-                for hot_start in range(3):
+                for hot_start in [0,2]:
                     verify_samples(QoI_range, sampler, input_domain,
                                    t_set, savefile, initial_sample_type, hot_start)
 

@@ -48,7 +48,7 @@ def loadmat(save_file, lb_model=None, hot_start=None, num_chains=None):
     print(hot_start)
     if hot_start is None:
         hot_start = 1
-   # LOAD FILES
+    # LOAD FILES
     if hot_start == 1:  # HOT START FROM PARTIAL RUN
         if comm.rank == 0:
             logging.info("HOT START from partial run")
@@ -63,7 +63,7 @@ def loadmat(save_file, lb_model=None, hot_start=None, num_chains=None):
             tmp_mdat = sample.loadmat(save_file)
         if num_chains is None:
             num_chains = np.squeeze(tmp_mdat['num_chains'])
-        num_chains_pproc = num_chains / comm.size
+        num_chains_pproc = num_chains // comm.size
         if len(mdat_files) == 0:
             logging.info("HOT START using serial file")
             mdat = sample.loadmat(save_file)
