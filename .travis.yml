@@ -36,6 +36,7 @@ branches:
     only:
         - master
         - sample
+        - sample-dev
 
 # Push the results back to codecov
 after_success:

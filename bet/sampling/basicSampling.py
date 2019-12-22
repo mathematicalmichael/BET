@@ -384,9 +384,9 @@ class sampler(object):
         """
         if isinstance(input_sample_set, int):
             msg = "No sample set. Using uniform random sampling in [0,1]."
-            logging.warn(msg)
+            logging.warning(msg)
             if self.num_samples is None:
-                logging.warn("Missing num_samples. Using 100 as default.")
+                logging.warning("Missing num_samples. Using 100 as default.")
                 self.num_samples = 100
             input_sample_set = self.random_sample_set('r', input_sample_set)
 
@@ -437,7 +437,7 @@ class sampler(object):
                 try:
                     msg = "Model not mapping reference value as expected."
                     msg += "Attempting reshape..."
-                    logging.warn(msg)
+                    logging.warning(msg)
                     Q_ref = self.lb_model(lam_ref.reshape(1, -1))
                     output_sample_set.set_reference_value(Q_ref)
                 except ValueError:
@@ -584,12 +584,12 @@ class sampler(object):
                 if new_ref_val is not None:  # ref input must be specified
                     msg = "Setting data for new discretization"
                     msg += "Using reference value and noise distribution."
-                    logging.warn(msg)
+                    logging.warning(msg)
                     new.set_data_from_reference()
                 else:
                     msg = "No data and no reference output"
                     msg += "for new output_probability_set."
-                    logging.warn(msg)
+                    logging.warning(msg)
             else:  # data that is passed is assumed to be noisy.
                 ref = disc._output_probability_set._reference_value
                 data = np.concatenate((ref.ravel(), data.ravel()))

@@ -660,9 +660,11 @@ class sample_set_base(object):
     def clip(self, cnum):
         """
         Creates and returns a sample set with the the first `cnum`
-        entries of the sample set.
+        entries of the sample set if `cnum` is an integer.
+        If `cum` is a list, it is used to return a selection of rows.
 
-        :param int cnum: number of values of sample set to return
+        :param cnum: number/selection of values of sample set to return
+        :type cnum: `int` or iterable indices into rows of sample set.
 
         :rtype: :class:`~bet.sample.sample_set`
         :returns: the clipped sample set
@@ -670,12 +672,17 @@ class sample_set_base(object):
         """
         sset = self.copy()
         sset.check_num()
+        if isinstance(cnum, int):
+            indices = list(np.arange(cnum))
+        elif isinstance(cnum, list) or isinstance(cnum, tuple):
+            indices = cnum
+
         if sset._values is None:
             sset.local_to_global()
         for array_name in self.array_names:
             current_array = getattr(sset, array_name)
             if current_array is not None:
-                new_array = current_array[0:cnum]
+                new_array = current_array[indices]
                 setattr(sset, array_name, new_array)
         if sset._values_local is not None:
             sset.global_to_local()
@@ -855,7 +862,7 @@ class sample_set_base(object):
         if volumes is not None:
             self._volumes = volumes
         else:
-            logging.warn("Setting volumes with prob/density.")
+            logging.warning("Setting volumes with prob/density.")
             dens = self._densities
             probs = self._probabilities
             if (dens is None) or (probs is None):
@@ -884,7 +891,7 @@ class sample_set_base(object):
         if probabilities is not None:
             self._probabilities = probabilities
         else:
-            logging.warn("Setting probabilities with density*volume.")
+            logging.warning("Setting probabilities with density*volume.")
             dens = self._densities
             vols = self._volumes
             if (dens is None) or (vols is None):
@@ -1072,7 +1079,7 @@ class sample_set_base(object):
         if probabilities_local is not None:
             self._probabilities_local = probabilities_local
         else:
-            logging.warn("Setting probabilities with density*volume.")
+            logging.warning("Setting probabilities with density*volume.")
             dens = self._densities_local
             vols = self._volumes_local
             if (dens is None) or (vols is None):
@@ -1410,25 +1417,30 @@ class sample_set_base(object):
         if num_samples is None:
             num_samples = self.check_num()
         # define local number of samples
-        num_samples_local = (num_samples // comm.size) +\
+        num_samples_local = int(num_samples / comm.size) +\
             int(comm.rank < num_samples % comm.size)
         self.set_values_local(self.rvs(num_samples_local,
                                        dist, *args, **kwds))
+
         if dist is not None:
             self.set_distribution(dist, *args, **kwds)
+        # clear existing arrays that depend on samples
         self.update_bounds_local()
         self._probabilities_local = None
         self._volumes_local = None
         self._jacobians_local = None
+        self._densities_local = None
         comm.barrier()
 
         if not globalize:
             self.local_to_global()
         else:
             self._values = None
+        # clear existing arrays that depend on samples
         self._volumes = None
         self._jacobians = None
         self._probabilities = None
+        self._densities = None
 
     def pdf(self, x=None, dist=None):
         r"""
@@ -1449,20 +1461,39 @@ class sample_set_base(object):
         """
         if dist is None:
             dist = self._distribution
+
         if x is None:
-            x = self._values
+            if self._values_local is None:
+                self.global_to_local()
+            # if self._values is None:
+            #     self.local_to_global()
+            x_local = self._values_local
+            num = self.check_num()
+        else:  # proessors evaluate subset of points
+            if x.ndim == 1:
+                x = x.reshape(1, -1)
+            num = x.shape[0]
+            # num_per_proc = int(num / comm.size) + \
+            #                int(comm.rank < num % comm.size)
+            # x_local = np.empty((num_per_proc, x.shape[1]), dtype='d')
+            # comm.Scatter(x, x_local, root=0)
+
+            x_local = np.array_split(x, comm.size)[comm.rank]
+
         if isinstance(dist, scipy.stats.gaussian_kde):
-            den = dist.pdf(x.T).T  # needs transpose
+            D_local = dist.pdf(x_local.T).T  # needs transpose
         else:
             if self._dim > 1:
                 try:  # handle `scipy.stats.rv_frozen` objects
-                    den = dist.pdf(x).prod(axis=1)
+                    D_local = dist.pdf(x_local).prod(axis=1)
                 except np.AxisError:
-                    den = dist.pdf(x)
+                    D_local = dist.pdf(x_local)
             else:  # 1-dimensional case
-                den = dist.pdf(x)
-        assert len(den) == x.shape[0]  # make sure we return correct size
-        return den.ravel()  # always return flattened
+                D_local = dist.pdf(x_local)
+        comm.barrier()
+        densities = util.get_global_values(D_local)
+        assert len(densities) == num  # make sure we return correct size
+        return densities.ravel()  # always return flattened
 
     def cdf(self, x=None, dist=None):
         r"""
@@ -1484,19 +1515,36 @@ class sample_set_base(object):
         if dist is None:
             dist = self._distribution
         if x is None:
-            x = self._values
+            if self._values_local is None:
+                self.global_to_local()
+            # if self._values is None:
+            #     self.local_to_global()
+            x_local = self._values_local
+            num = self.check_num()
+        else:  # proessors evaluate subset of points
+            if x.ndim == 1:
+                x = x.reshape(1, -1)
+            num = x.shape[0]
+            # num_per_proc = int(num / comm.size) + \
+            #                int(comm.rank < num % comm.size)
+            # x_local = np.empty((num_per_proc, x.shape[1]), dtype='d')
+            # comm.Scatter(x, x_local, root=0)
+
+            x_local = np.array_split(x, comm.size)[comm.rank]
+
         if isinstance(dist, scipy.stats.gaussian_kde):
-            cum = dist.cdf(x.T).T  # needs transpose
+            C_local = dist.cdf(x_local.T).T  # needs transpose
         else:
             if self._dim > 1:
                 try:  # handle `scipy.stats.rv_frozen` objects
-                    cum = dist.cdf(x).prod(axis=1)
+                    C_local = dist.cdf(x_local).prod(axis=1)
                 except np.AxisError:
-                    cum = dist.cdf(x)
+                    C_local = dist.cdf(x_local)
             else:  # 1-dimensional case
-                cum = dist.cdf(x)
-        assert len(cum) == x.shape[0]
-        return cum.ravel()  # always return flattened
+                C_local = dist.cdf(x_local)
+        cumulatives = util.get_global_values(C_local)
+        assert len(cumulatives) == num
+        return cumulatives.ravel()  # always return flattened
 
     def estimate_probabilities_mc(self, globalize=True):
         """
@@ -1662,9 +1710,9 @@ def load_discretization_parallel(file_name, discretization_name=None):
             warn_string = "Local pointers have been removed and will be"
             warn_string += " re-created as necessary)"
             warnings.warn(warn_string)
-            #loaded_disc._io_ptr_local = None
-            #loaded_disc._emulated_ii_ptr_local = None
-            #loaded_disc._emulated_oo_ptr_local = None
+            loaded_disc._io_ptr_local = None
+            loaded_disc._emulated_ii_ptr_local = None
+            loaded_disc._emulated_oo_ptr_local = None
     return loaded_disc
 
 
@@ -2072,7 +2120,8 @@ class voronoi_sample_set(sample_set_base):
             # Calculate mean, std of pairwise distances
             # TODO this may be too large/small
             # Estimate radius as 2.*STD of the pairwise distance
-            sample_radii[sample_radii <= 0] = prob_est_radii[sample_radii <= 0]
+            sample_radii[sample_radii <=
+                         0] = prob_est_radii[sample_radii <= 0]
 
         # determine the volume of the Lp ball
         if not np.isinf(self._p_norm):
@@ -2353,7 +2402,10 @@ class rectangle_sample_set(sample_set_base):
         num = self.check_num()
         self._volumes = np.zeros((num, ))
         domain_width = self._domain[:, 1] - self._domain[:, 0]
-        self._volumes[0:-1] = np.prod(self._width[0:-1] / domain_width, axis=1)
+        self._volumes[0:-
+                      1] = np.prod(self._width[0:-
+                                               1] /
+                                   domain_width, axis=1)
         self._volumes[-1] = 1.0 - np.sum(self._volumes[0:-1])
 
 
@@ -2381,10 +2433,12 @@ class ball_sample_set(sample_set_base):
 
         """
         if len(centers) != len(radii):
-            raise length_not_matching("Different number of centers and radii.")
+            raise length_not_matching(
+                "Different number of centers and radii.")
         for i in range(len(centers)):
             if len(centers[i]) != self._dim:
-                msg = "Center " + repr(i) + " has the wrong number of entries."
+                msg = "Center " + repr(i) + \
+                    " has the wrong number of entries."
                 raise length_not_matching(msg)
         values = np.zeros((len(centers) + 1, self._dim))
         values[0:-1, :] = centers
@@ -2636,8 +2690,9 @@ class discretization(object):
 
         if output_sample_set is not None:
             self.check_nums()
-            if output_probability_set is not None:
-                self.set_io_ptr(globalize=True)
+            # TK - edit this out
+            # if output_probability_set is not None:
+            #    self.set_io_ptr(globalize=True)
         else:
             logging.info("No output_sample_set")
 
@@ -2675,6 +2730,16 @@ class discretization(object):
                 (self._emulated_oo_ptr is None):
             self._emulated_oo_ptr = util.get_global_values(
                 self._emulated_oo_ptr_local)
+
+    def local_to_global(self):
+        """
+        Call local_to_global for ``input_sample_set`` and
+        ``output_sample_set``.
+        """
+        if self._input_sample_set is not None:
+            self._input_sample_set.local_to_global()
+        if self._output_sample_set is not None:
+            self._output_sample_set.local_to_global()
 
     def set_io_ptr(self, globalize=True):
         """
@@ -2814,6 +2879,17 @@ class discretization(object):
             current_array = getattr(self, array_name)
             if current_array is not None:
                 setattr(my_copy, array_name, np.copy(current_array))
+        # copy setup information
+        if self._setup is not None:
+            import copy
+            my_copy._setup = copy.deepcopy(self._setup)
+        initial = self.get_initial()
+        if initial is not None:
+            my_copy.set_initial(
+                initial.dist,
+                gen=False,
+                *initial.args,
+                **initial.kwds)
         return my_copy
 
     def get_input_sample_set(self):
@@ -2909,6 +2985,7 @@ class discretization(object):
                     try:
                         self.set_io_ptr(globalize=False)
                     except dim_not_matching:  # handle data-driven case
+                        raise AttributeError("DATA DRIVEN")
                         self._io_ptr_local = np.arange(num)
 
     def get_emulated_output_sample_set(self):
@@ -3094,7 +3171,7 @@ class discretization(object):
 
     def choose_outputs(self, outputs=None):
         """
-        Slices outputs of discretization and returns object with the
+        Slices outputs of discretization (columns) and returns object with the
         same input sample set. For new instances, use `choose_inputs_outputs`.
         This function is of particular use for iterated ansatzs.
 
@@ -3128,7 +3205,7 @@ class discretization(object):
                               inputs=None,
                               outputs=None):
         """
-        Slices the inputs and outputs of the discretization.
+        Slices the inputs and outputs of the discretization (columns).
 
         :param list inputs: list of indices of input sample set to include.
         :param list outputs: list of indices of output sample set to include
@@ -3214,7 +3291,7 @@ class discretization(object):
         std = self.get_std()
         data = self.get_data()
         if data is None:
-            logging.warn("Missing data. Using mean of observed.")
+            logging.warning("Missing data. Using mean of observed.")
             data = obs.mean()
         if flip:
             self._setup[self._iteration]['col'] = True
@@ -3244,14 +3321,17 @@ class discretization(object):
             iteration = self._iteration
         return self._setup[iteration]['pre']
 
-    def set_predicted_distribution(
-            self, dist=None, iteration=None, *args, **kwds):
+    def set_predicted_distribution(self, dist=None,
+                                   iteration=None, *args, **kwds):
         r"""
-        Wrapper for `compute_pushforward`.
+        Wrapper for `compute_pushforward` if `dist==None`. Otherwise this
+        function sets the predicted distribution (the distribution associated
+        with the `output_sample_set` in the `discretization`.
         """
         if dist is None:
             return self.compute_pushforward(dist, iteration)
-        elif isinstance(dist, scipy.stats._distn_infrastructure.rv_frozen):
+        elif isinstance(dist, scipy.stats._continuous_distns.rv_continuous) or \
+                isinstance(dist, scipy.stats._distn_infrastructure.rv_frozen):
             self._output_sample_set.set_distribution(dist, *args, **kwds)
             if iteration is None:
                 iteration = self._iteration
@@ -3262,7 +3342,7 @@ class discretization(object):
 
     def set_predicted(self, dist=None, iteration=None, *args, **kwds):
         r"""
-        Wrapper for `compute_pushforward`.
+        Wrapper for `set_predicted_distribution`.
         """
         return self.set_predicted_distribution(dist, iteration, *args, **kwds)
 
@@ -3286,34 +3366,35 @@ class discretization(object):
             self._input_sample_set.set_distribution(dist, *args, **kwds)
         if gen:
             self._input_sample_set.generate_samples(num)
-        # map output samples
-        lam_ref = self._input_sample_set._reference_value
-        # initialize output samples
-        y = np.zeros((num, 1))  # temporary vector of correct shape
-        v = np.array([])
-        # TK - TODO: support string-indexed dictionaries, consistent order,
-        # unify with pdf methods.
-        for iteration in self._setup.keys():  # map through every model
-            # clear all push-forwards
-            self._setup[iteration]['pre'] = None
-            model = self._setup[iteration]['model']
-            # ensure model output size is consistent
-            if model is not None:
-                z = model(self._input_sample_set._values)
-                if lam_ref is not None:
-                    try:  # handle reference value
-                        v = np.concatenate((v, model(lam_ref)), axis=0)
-                    except ValueError:  # handle scalar models
-                        v = np.column_stack((v, model(lam_ref).reshape(1,)))
-                try:
-                    y = np.column_stack((y, z))
-                except np.AxisError:  # handle scalar models
-                    y = np.concatenate((y, z.reshape(-1, 1)), axis=1)
+            # map output samples
+            lam_ref = self._input_sample_set._reference_value
+            # initialize output samples
+            y = np.zeros((num, 1))  # temporary vector of correct shape
+            v = np.array([])
+            # TK - TODO: support string-indexed dictionaries, consistent order,
+            # unify with pdf methods.
+            for iteration in self._setup.keys():  # map through every model
+                # clear all push-forwards
+                self._setup[iteration]['pre'] = None
+                model = self._setup[iteration]['model']
+                # ensure model output size is consistent
+                if model is not None:
+                    z = model(self._input_sample_set._values)
+                    if lam_ref is not None:
+                        try:  # handle reference value
+                            v = np.concatenate((v, model(lam_ref)), axis=0)
+                        except ValueError:  # handle scalar models
+                            v = np.column_stack(
+                                (v, model(lam_ref).reshape(1,)))
+                    try:
+                        y = np.column_stack((y, z))
+                    except np.AxisError:  # handle scalar models
+                        y = np.concatenate((y, z.reshape(-1, 1)), axis=1)
             y = y[:, 1:]  # remove zeros
-        self._output_sample_set._dim = y.shape[1]
-        self._output_sample_set.set_values(y)
-        if lam_ref is not None:
-            self._output_sample_set.set_reference_value(v)
+            self._output_sample_set._dim = y.shape[1]
+            self._output_sample_set.set_values(y)
+            if lam_ref is not None:
+                self._output_sample_set.set_reference_value(v)
 
     def set_initial(self, dist=None, num=None, gen=True, *args, **kwds):
         r"""
@@ -3359,7 +3440,8 @@ class discretization(object):
         self._setup[iteration]['obs'] = obs_dist
 
         # Store information about standard deviation for later use.
-        logging.info("Setting standard deviation information for output data.")
+        logging.info(
+            "Setting standard deviation information for output data.")
         self.set_std(obs_dist.std(), iteration=iteration)
 
     def set_observed(self, dist=None, iteration=None, *args, **kwds):
@@ -3380,7 +3462,8 @@ class discretization(object):
 
         if dist is None:
             from scipy.stats import gaussian_kde as gkde
-            self._output_sample_set._distribution = gkde(data.T, *args, **kwds)
+            self._output_sample_set._distribution = gkde(
+                data.T, *args, **kwds)
         elif isinstance(dist, str):
             self._output_sample_set.set_distribution(dist, *args, **kwds)
         else:
@@ -3410,8 +3493,8 @@ class discretization(object):
             iteration = self._iteration
 
         if self._setup[iteration]['pre'] is None:
-            self.compute_pushforward(iteration=iteration)
             logging.info("Missing predicted distribution. Computing now.")
+            self.compute_pushforward(iteration=iteration)
 
         for i in range(0, iteration + 1):  # get all previous
             data_driven_status = self._setup[i]['col']
@@ -3669,7 +3752,7 @@ class discretization(object):
         if iteration is None:
             iteration = self._iteration
         if dist is None:
-            logging.warn("Assuming Normal, pulling from get_std.")
+            logging.warning("Assuming Normal, pulling from get_std.")
             dist = self.get_std(iteration)
         logging.info(
             "With this option, you will be inferring std from observed.")
@@ -3725,7 +3808,7 @@ class discretization(object):
             except np.AxisError:  # row-vector support
                 qoi = x[inds].reshape(-1, 1)
             except IndexError:  # perhaps just passing relevant
-                logging.warn("Could not index data. Setting as-is.")
+                logging.warning("Could not index data. Setting as-is.")
                 qoi = x  # support already-formatted data
 
         # Now our data is the correct dimension to be passed
@@ -3794,7 +3877,7 @@ class discretization(object):
 
         if self._output_probability_set is None:
             inds = np.arange(self._output_sample_set._dim)
-            logging.warn("Returning reference value.")
+            logging.warning("Returning reference value.")
             return self._output_sample_set._reference_value[inds]
         elif self._output_probability_set._reference_value is None:
             inds = np.arange(self._output_sample_set._dim)
@@ -3803,7 +3886,7 @@ class discretization(object):
             else:
                 msg = "Output reference is None. "
                 msg += "Will use mean of observed as reference data!"
-                logging.warn(msg)
+                logging.warning(msg)
                 # Return zeros as placeholder.
                 self.set_data_from_observed(iteration=iteration)
                 return self.get_data(iteration)
@@ -3825,7 +3908,7 @@ class discretization(object):
         dim = len(data)
         self._setup[iteration]['ind'] = inds
         if self._output_probability_set is None:
-            logging.warn("Missing output probability set. Creating.")
+            logging.warning("Missing output probability set. Creating.")
             self._output_probability_set = sample_set(dim)
 
         if self._output_probability_set._reference_value is None:
@@ -3846,16 +3929,17 @@ class discretization(object):
         if std is None:
             if self._setup[iteration]['std'] is None:
                 if self._setup[iteration]['obs'] is None:
-                    logging.warn(
+                    logging.warning(
                         "No way to infer std. Will use sample variance.")
                     if len(self.get_data_indices(iteration)) == 1:
-                        logging.warn(
+                        logging.warning(
                             "Cannot take sample variance of singleton.")
                 else:
-                    logging.warn(
+                    logging.warning(
                         "No std provided. Will use std from observed.")
             else:
-                logging.warn("No std provided. Using existing entry in setup.")
+                logging.warning(
+                    "No std provided. Using existing entry in setup.")
         else:
             self._setup[iteration]['std'] = std
         if self._setup[iteration]['col']:
@@ -3872,7 +3956,7 @@ class discretization(object):
         self._setup[iteration]['ind'] = inds
         self._setup[iteration]['pre'] = None
         self._setup[iteration]['obs'] = None
-        logging.warn('Observed and Predicted entries cleared.')
+        logging.warning('Observed and Predicted entries cleared.')
 
     def get_data_indices(self, iteration=None):
         r"""
@@ -3919,7 +4003,7 @@ class discretization(object):
                 rep_inds = list(np.tile(rep, len(inds) // len(rep)))
                 if len(rep_inds) != len(
                         inds):  # data available that is unaccounted for
-                    logging.warn(
+                    logging.warning(
                         "Data doesn't divide evenly into repeated indices.")
                     num_missing = len(inds) % len(rep_inds)
                     # add "missing" repeated values.
@@ -4035,7 +4119,7 @@ class discretization(object):
         inds = self.get_output_indices(iteration)
 
         if dist is None:
-            logging.warn("Using observed as noise model.")
+            logging.warning("Using observed as noise model.")
             dist = self._setup[iteration]['obs']
 
         # support repeating data.
@@ -4048,7 +4132,7 @@ class discretization(object):
             if lam_ref is None:
                 msg = "Missing input reference value."
                 msg += "Using draw directly from observed distribution."
-                logging.warn(msg)
+                logging.warning(msg)
                 direct = True
             else:
                 if model is None:
@@ -4057,7 +4141,7 @@ class discretization(object):
                     else:
                         msg = "Missing model, input reference value present."
                         msg += "Using draw from observed distribution."
-                        logging.warn(msg)
+                        logging.warning(msg)
                         direct = True
                 else:
                     logging.info("Using model to map input reference value.")
@@ -4067,7 +4151,8 @@ class discretization(object):
             Q_ref = Q_ref[inds]
 
         if (np.max(np.abs(dist.mean())) != 0):
-            logging.warn("Non-homogeneous noise. Using random draw for data.")
+            logging.warning(
+                "Non-homogeneous noise. Using random draw for data.")
             direct = True
         if not direct:
             noise = self._output_probability_set.rvs(dist=dist)
@@ -4086,10 +4171,11 @@ class discretization(object):
         if std is None:  # nothing passed
             if self._setup[iteration]['std'] is None:  # nothing written
                 if self._setup[iteration]['obs'] is None:
-                    logging.warn(
+                    logging.warning(
                         "Defaulting to estimating using data sample variance.")
                 else:  # use observed to infer std if it is missing.
-                    logging.warn("Inferring standard deviation from observed.")
+                    logging.warning(
+                        "Inferring standard deviation from observed.")
                     # method std() belongs to distribution
         else:  # write as-is if anything except None
             # but if numpy array, convert to list.
@@ -4110,7 +4196,7 @@ class discretization(object):
                     elif len(std) == self._output_sample_set._dim:
                         msg = "Wrong size std."
                         msg = "Assuming these correspond to repeated outputs."
-                        logging.warn(msg)
+                        logging.warning(msg)
                         pass
                     else:
                         msg = "Wrong size std (mismatch with data indices)."
@@ -4167,7 +4253,7 @@ class discretization(object):
             try:
                 return self._setup[iteration]
             except KeyError:
-                logging.warn("Iteration out of bounds. Returning current.")
+                logging.warning("Iteration out of bounds. Returning current.")
                 return self._setup[self._iteration]
         else:
             return self._setup[self._iteration]
