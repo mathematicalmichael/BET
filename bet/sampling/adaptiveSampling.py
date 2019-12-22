@@ -62,6 +62,7 @@ def loadmat(save_file, lb_model=None, hot_start=None, num_chains=None):
             tmp_mdat = sample.loadmat(save_file)
         if num_chains is None:
             num_chains = np.squeeze(tmp_mdat['num_chains'])
+
         num_chains_pproc = num_chains // comm.size
         if len(mdat_files) == 0:
             logging.info("HOT START using serial file")
@@ -93,7 +94,8 @@ def loadmat(save_file, lb_model=None, hot_start=None, num_chains=None):
             # if the number of processors is the same then set mdat to
             # be the one with the matching processor number (doesn't
             # really matter)
-            disc = sample.load_discretization(mdat_files[comm.rank])
+            disc = sample.load_discretization(save_file)
+            chain_length = disc.check_nums() // num_chains
             kern_old = np.squeeze(tmp_mdat['kern_old'])
             all_step_ratios = np.squeeze(tmp_mdat['step_ratios'])
         elif hot_start == 1 and len(mdat_files) != comm.size:
