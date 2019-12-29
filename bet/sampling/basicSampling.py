@@ -134,7 +134,7 @@ def random_sample_set(sample_type, input_obj, num_samples,
 
         input_sample_set.set_values_local(input_values_local)
         from scipy.stats import uniform
-        input_sample_set.set_distribution(uniform)
+        input_sample_set.set_distribution(uniform, gen=False, loc=input_domain[:,0], scale=input_domain[:,1]-input_domain[:,0])
     comm.barrier()
 
     if globalize:
