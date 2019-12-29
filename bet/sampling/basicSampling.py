@@ -111,6 +111,8 @@ def random_sample_set(sample_type, input_obj, num_samples,
         # create the domain
         input_domain = np.array([[0., 1.]] * dim)
         input_sample_set.set_domain(input_domain)
+    else:
+        input_domain = input_sample_set.get_domain()
 
     if sample_type == "lhs":
         # update the bounds based on the number of samples
@@ -134,7 +136,7 @@ def random_sample_set(sample_type, input_obj, num_samples,
 
         input_sample_set.set_values_local(input_values_local)
         from scipy.stats import uniform
-        input_sample_set.set_distribution(uniform, gen=False, loc=input_domain[:,0], scale=input_domain[:,1]-input_domain[:,0])
+        input_sample_set.set_distribution(uniform, loc=input_domain[:,0], scale=input_domain[:,1]-input_domain[:,0])
     comm.barrier()
 
     if globalize:
