@@ -1449,6 +1449,7 @@ class sample_set_base(object):
         self._volumes_local = None
         self._jacobians_local = None
         self._densities_local = None
+        self._kdtree_values_local = None
         comm.barrier()
 
         if not globalize:
@@ -1460,6 +1461,8 @@ class sample_set_base(object):
         self._jacobians = None
         self._probabilities = None
         self._densities = None
+        self._kdtree_values = None
+        self._kdtree = None
 
     def pdf(self, x=None, dist=None):
         r"""
@@ -3386,6 +3389,7 @@ class discretization(object):
             self._input_sample_set.set_distribution(dist, *args, **kwds)
         if gen:
             self._input_sample_set.generate_samples(num)
+            
             # map output samples
             lam_ref = self._input_sample_set._reference_value
             # initialize output samples

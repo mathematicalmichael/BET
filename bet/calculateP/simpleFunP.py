@@ -397,7 +397,7 @@ def regular_partition_uniform_distribution_rectangle_size(data_set, Q_ref=None,
         raise wrong_argument_type(msg)
 
     if not isinstance(cells_per_dimension, collections.Iterable):
-        cells_per_dimension = np.ones((dim,)) * cells_per_dimension
+        cells_per_dimension = np.ones((dim,)).astype(int) * cells_per_dimension
 
     maxes = [Q_ref + 0.5 * np.array(rect_size)]
     mins = [Q_ref - 0.5 * np.array(rect_size)]
