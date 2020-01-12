@@ -126,14 +126,14 @@ class comparison(object):
         self._comparison_sample_set = comparison_sample_set
         #: Pointer from ``self._comparison_sample_set`` to
         #: ``self._left_sample_set``
-        self._ptr_left = ptr_left
+        self._ptr_left = None
         #: Pointer from ``self._comparison_sample_set`` to
         #: ``self._right_sample_set``
-        self._ptr_right = ptr_right
+        self._ptr_right = None
         #: local integration left ptr for parallelsim
-        self._ptr_left_local = None
+        self._ptr_left_local = ptr_left
         #: local integration right ptr for parallelism
-        self._ptr_right_local = None
+        self._ptr_right_local = ptr_right
         #: Domain
         self._domain = None
         #: Left sample set density evaluated on emulation set.
