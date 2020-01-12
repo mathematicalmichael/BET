@@ -195,6 +195,8 @@ class comparison(object):
             if len(ptr_left) != self._num_samples:
                 raise AttributeError(
                     "Left pointer length must match comparison set.")
+            else:
+                self._ptr_left = ptr_left
             if (ptr_right is not None):
                 if not np.allclose(ptr_left.shape, ptr_right.shape):
                     raise AttributeError("Pointers must be of same length.")
@@ -202,6 +204,9 @@ class comparison(object):
             if len(ptr_right) != self._num_samples:
                 raise AttributeError(
                     "Right pointer length must match comparison set.")
+            else:
+                self._ptr_right = ptr_right
+        self.globalize_ptrs()
 
     def check_dim(self):
         r"""
