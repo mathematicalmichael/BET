@@ -15,7 +15,10 @@ Another option is to clone the repository and install BET using
 
 
 ## Dependencies
-BET is tested on Python 3.6 and 3.7 (but should work on most recent Python 3 versions) and depends on [NumPy](http://www.numpy.org/), [SciPy](http://www.scipy.org/), [matplotlib](http://matplotlib.org/), [pyDOE](https://pythonhosted.org/pyDOE/), [pytest](https://docs.pytest.org/), and [mpi4py](https://mpi4py.readthedocs.io/en/stable/) (optional) (see [requirements.txt](requirements.txt) for version information). For some optional features [LUQ](https://github.com/CU-Denver-UQ/LUQ) is also required.
+BET is tested on Python 3.6 and 3.7 (but should work on most recent Python 3 versions) and depends on [NumPy](http://www.numpy.org/), [SciPy](http://www.scipy.org/), [matplotlib](http://matplotlib.org/), [pyDOE](https://pythonhosted.org/pyDOE/), [pytest](https://docs.pytest.org/), and [mpi4py](https://mpi4py.readthedocs.io/en/stable/) (optional) (see [requirements.txt](requirements.txt) for version information). For some optional features [LUQ](https://github.com/CU-Denver-UQ/LUQ) is also required. mpi4py is required to take advantage of parallel features and requires an mpi implementation. It can be installed by:
+
+    pip install mpi4py
+
 
 ## License
 [GNU Lesser General Public License (LGPL)](LICENSE.txt)
@@ -23,25 +26,26 @@ BET is tested on Python 3.6 and 3.7 (but should work on most recent Python 3 ver
 ## Citing BET
 Please include the citation:
 
-Lindley Graham, Steven Mattis, Scott Walsh, Troy Butler, Michael Pilosov, and Damon McDougall. “BET: Butler, Estep, Tavener Method V2.0.0”. Zenodo, August 10, 2016. [doi:10.5281/zenodo.59964](https://doi.org/10.5281/zenodo.59964)
+Lindley Graham, Steven Mattis, Michael Pilosov, Scott Walsh, Troy Butler, Michael Pilosov, … Damon McDougall. (2020, July 9). UT-CHG/BET: BET v3.0.0 (Version v3.0.0). Zenodo. http://doi.org/10.5281/zenodo.3936258
 
 or in BibTEX:
 
     @software{BET,
-    author       = {Lindley Graham and
-                    Steven Mattis and
-                    Scott Walsh and
-                    Troy Butler and
-                    Michael Pilosov and
-                    Damon McDougall},
-    title        = {BET: Butler, Estep, Tavener Method v2.0.0},
-    month        = aug,
-    year         = 2016,
-    publisher    = {Zenodo},
-    version      = {v2.0.0},
-    doi          = {10.5281/zenodo.59964},
-    url          = {https://doi.org/10.5281/zenodo.59964}
-    }
+              author = {Lindley Graham and
+                        Steven Mattis and
+                        Michael Pilosov and
+                        Scott Walsh and
+                        Troy Butler and
+                        Wenjuan Zhang and
+                        Damon McDougall},
+              title = {UT-CHG/BET: BET v3.0.0},
+              month = jul,
+              year = 2020,
+              publisher = {Zenodo},
+              version = {v3.0.0},
+              doi = {10.5281/zenodo.3936258},
+              url = {https://doi.org/10.5281/zenodo.3936258}
+              }
 
 ## Documentation
 
@@ -75,7 +79,7 @@ To run the tests in the root directory with `pytest` in serial call:
 
     pytest ./test/
 
-Some features of BET have the ability to work in parallel. To run tests in parallel call:
+Some features of BET (primarily those associated with the measure-based approach) have the ability to work in parallel. To run tests in parallel call:
 
     mpirun -np NPROC pytest ./test/
 
