@@ -13,6 +13,7 @@ before_install:
   - sudo apt-get install gfortran libblas-dev liblapack-dev mpich libmpich-dev
 
 install:
+
   - pip install .
   - pip install codecov pytest-cov Sphinx sphinx_rtd_theme
   - pip install git+https://github.com/CU-Denver-UQ/LUQ
@@ -53,11 +54,14 @@ deploy:
   provider: pages
   skip_cleanup: true
   skip_existing: true
+
   github_token: $GITHUB_TOKEN  # Set in the settings page of your repository, as a secure variable
   keep_history: false
   local_dir: gh-pages/html
   on:
     branch: master
+
+
 
 
 
