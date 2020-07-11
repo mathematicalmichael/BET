@@ -41,8 +41,11 @@ jobs:
     - name: Serial tests
       run: pytest --cov=./bet/ ./test/
 
-    - name: Parallel tests
+    - name: Parallel tests (n=2)
       run: mpirun -n 2 pytest  ./test/
+
+    - name: Parallel tests (n=4)
+      run: mpirun -n 4 pytest  ./test/
 
     - name: Serial tests (w/o MPI)    
       run: |
